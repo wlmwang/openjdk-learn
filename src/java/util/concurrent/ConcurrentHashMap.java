@@ -264,9 +264,9 @@ import java.util.stream.Stream;
  * @param <K> the type of keys maintained by this map
  * @param <V> the type of mapped values
  */
-// 存储 k-v 键值对的无序映射表。它是HashMap的一个线程安全的、支持高效并发的版本
-// 亮点：采用分段锁的设计，可使哈希表在更新时，使用更细粒度的锁；采用计数器数组的设计，可使统计元素
-// 个数的字段成为新的"热点域"问题（最初的"热点域"哈希表字段，已经使用分段锁解决）
+// 存储 k-v 键值对的无序映射表。它是|HashMap|的一个线程安全的、支持高效并发的版本
+// 亮点：采用分段锁的设计，使哈希表的变更，有更细粒度的锁；采用计数器数组的设计，可解决长度字段成为
+// 新的"热点域"问题。 热点域：1.哈希表（分段锁解决） 2.计数器（使用数组（CAS竞争减少））
 // 注：计数器数组的长度被限制在不得大于CPU数目最小的2指数倍。比如6核CPU，数组长度最大为8。最小为2
 public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     implements ConcurrentMap<K,V>, Serializable {
