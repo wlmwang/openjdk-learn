@@ -74,6 +74,7 @@ import sun.nio.cs.StreamEncoder;
  * @since       JDK1.1
  */
 
+// 装饰一个字节输入流，使其对外提供可指定具体编码方案的字符输入接口
 public class OutputStreamWriter extends Writer {
 
     private final StreamEncoder se;

@@ -43,6 +43,8 @@ package java.io;
  * @see     java.io.OutputStream#write(int)
  * @since   JDK1.0
  */
+// 所有字节输出流（写入）的超类
+// 注：字节流，即以|8|位（|1byte=8bit|）作为一个数据单元。数据流中最小的数据单元是字节
 public abstract class OutputStream implements Closeable, Flushable {
     /**
      * Writes the specified byte to this output stream. The general
@@ -59,6 +61,9 @@ public abstract class OutputStream implements Closeable, Flushable {
      *             an <code>IOException</code> may be thrown if the
      *             output stream has been closed.
      */
+    // 将指定的字节写入输出流。要写入的字节是参数|b|的低|8|位，|b|的高|24|位被忽略。如果发
+    // 生|I/O|错误，特别是，如果输出流已关闭，则可能会抛出|IOException|
+    // 注：不使用类型|byte|，其的范围是|-128~127|不能覆盖|ASCII|码表
     public abstract void write(int b) throws IOException;
 
     /**
@@ -71,6 +76,7 @@ public abstract class OutputStream implements Closeable, Flushable {
      * @exception  IOException  if an I/O error occurs.
      * @see        java.io.OutputStream#write(byte[], int, int)
      */
+    // 将字节数组|b|写入到输出流。此方法可能会阻塞，直到输入可用
     public void write(byte b[]) throws IOException {
         write(b, 0, b.length);
     }
@@ -103,6 +109,9 @@ public abstract class OutputStream implements Closeable, Flushable {
      *             an <code>IOException</code> is thrown if the output
      *             stream is closed.
      */
+    // 将字节数组|b[off:off+len]|写入到输出流中。如果|len|不为零，则该方法可能将阻塞，直到输出可
+    // 用；如果|len|为零，方法将立即返回
+    // 注：底层会自动进行数组|b|是否越界校验，即，方法可能会抛出|IndexOutOfBoundsException|
     public void write(byte b[], int off, int len) throws IOException {
         if (b == null) {
             throw new NullPointerException();

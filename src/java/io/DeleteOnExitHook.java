@@ -41,6 +41,7 @@ class DeleteOnExitHook {
         // delete on exit list and cause the DeleteOnExitHook to be
         // registered during shutdown in progress. So set the
         // registerShutdownInProgress parameter to true.
+        // 设置虚拟机终止时的回调的线程方法
         sun.misc.SharedSecrets.getJavaLangAccess()
             .registerShutdownHook(2 /* Shutdown hook invocation order */,
                 true /* register even if shutdown in progress */,
@@ -54,6 +55,8 @@ class DeleteOnExitHook {
 
     private DeleteOnExitHook() {}
 
+    // 注册在虚拟机终止时，要删除的当前抽象路径表示的文件（或目录）。文件（或目录）的删除顺序与它们
+    // 注册的顺序相反。重复注册待删除文件（或目录）
     static synchronized void add(String file) {
         if(files == null) {
             // DeleteOnExitHook is running. Too late to add a file
@@ -63,6 +66,7 @@ class DeleteOnExitHook {
         files.add(file);
     }
 
+    // 虚拟机终止时的回调的线程方法入口
     static void runHooks() {
         LinkedHashSet<String> theFiles;
 
@@ -75,6 +79,7 @@ class DeleteOnExitHook {
 
         // reverse the list to maintain previous jdk deletion order.
         // Last in first deleted.
+        // 文件（或目录）的删除顺序与它们注册的顺序相反
         Collections.reverse(toBeDeleted);
         for (String filename : toBeDeleted) {
             (new File(filename)).delete();

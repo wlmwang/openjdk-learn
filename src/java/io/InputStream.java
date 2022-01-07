@@ -42,6 +42,8 @@ package java.io;
  * @see     java.io.PushbackInputStream
  * @since   JDK1.0
  */
+// 所有字节输入流（读取）的超类
+// 注：字节流，即以|8bit|（|1byte=8bit|）作为一个数据单元。数据流中最小的数据单元是字节
 public abstract class InputStream implements Closeable {
 
     // MAX_SKIP_BUFFER_SIZE is used to determine the maximum buffer size to
@@ -62,6 +64,10 @@ public abstract class InputStream implements Closeable {
      *             stream is reached.
      * @exception  IOException  if an I/O error occurs.
      */
+    // 从输入流中读取下一个字节的数据，以|0~255|范围内的|int|值形式返回。如果已到达流末尾而没有
+    // 可用字节，则返回值|-1|。此方法会阻塞，直到输入数据可用、检测到流结束（关闭）或抛出异常为止
+    // 注：类型|byte|的范围是|-128~127|不能覆盖|ASCII|码表
+    // 注：一个有效的单字节数据被转换成整型后不可能为|-1|，除非|read()|方法主动返回|-1|
     public abstract int read() throws IOException;
 
     /**

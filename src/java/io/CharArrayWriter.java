@@ -39,16 +39,21 @@ import java.util.Arrays;
  * @author      Herb Jellinek
  * @since       JDK1.1
  */
+// 字符数组输出流（写入）。是一个字符流、节点流。字符数组由外部传入。  线程安全
+// 注：算法、接口与|ByteArrayOutputStream|基本相同，区别是本类用于处理|char|类型数据
 public
 class CharArrayWriter extends Writer {
     /**
      * The buffer where data is stored.
      */
+    // 输出流的字符数组。自动扩容
     protected char buf[];
 
     /**
      * The number of chars in the buffer.
      */
+    // 向输出流字符数组写入的一个字符时的索引。也是当前字符数组中已写入数据的长度
+    // 注：|buf[0:count-1]|为已写入流中的数据；|count|的长度范围为|0~buf.length|
     protected int count;
 
     /**

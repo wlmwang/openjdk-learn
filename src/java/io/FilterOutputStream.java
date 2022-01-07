@@ -41,6 +41,7 @@ package java.io;
  * @author  Jonathan Payne
  * @since   JDK1.0
  */
+// 一个输出流的简单代理类。主要用于装饰一个底层的输出流，在其之上提供一些附加功能
 public
 class FilterOutputStream extends OutputStream {
     /**
@@ -117,6 +118,8 @@ class FilterOutputStream extends OutputStream {
      * @exception  IOException  if an I/O error occurs.
      * @see        java.io.FilterOutputStream#write(int)
      */
+    // 将字节数组|b[off:off+len]|写入到底层流中。如果|len|为零，方法将立即返回
+    // 注：内部会自动进行数组|b|是否越界校验，即，方法可能会抛出|IndexOutOfBoundsException|
     public void write(byte b[], int off, int len) throws IOException {
         if ((off | len | (b.length - (len + off)) | (off + len)) < 0)
             throw new IndexOutOfBoundsException();
@@ -136,6 +139,7 @@ class FilterOutputStream extends OutputStream {
      * @exception  IOException  if an I/O error occurs.
      * @see        java.io.FilterOutputStream#out
      */
+    // 调用底层流的刷新接口
     public void flush() throws IOException {
         out.flush();
     }
@@ -152,6 +156,8 @@ class FilterOutputStream extends OutputStream {
      * @see        java.io.FilterOutputStream#flush()
      * @see        java.io.FilterOutputStream#out
      */
+    // 关闭输出流并释放与该流关联的所有系统资源。并且在关闭前，会先触发该输出流刷新动作
+    // 注：先调用底层流的|flush()|方法，然后再调用底层|close()|方法
     @SuppressWarnings("try")
     public void close() throws IOException {
         try (OutputStream ostream = out) {

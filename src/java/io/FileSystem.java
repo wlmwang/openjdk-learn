@@ -49,12 +49,16 @@ abstract class FileSystem {
      * Convert the given pathname string to normal form.  If the string is
      * already in normal form then it is simply returned.
      */
+    // 将给定的路径进行通用处理。包括：将连续'\\'字符转换成'\'；将结尾所有'\'字符去除
     public abstract String normalize(String path);
 
     /**
      * Compute the length of this pathname string's prefix.  The pathname
      * string must be in normal form.
      */
+    // 计算给定的路径前缀的长度。在|UNIX|平台上，若首字符为'\'，返回1；否则返回0
+    // 注：在|Win|平台上，若路径前缀是"\\"，则返回1，若为"\\\\"，则返回2，若路径前缀
+    // 含有驱动器，是"C:\\"，则返回3；都不是的话，则返回0
     public abstract int prefixLength(String path);
 
     /**
@@ -62,6 +66,8 @@ abstract class FileSystem {
      * Both strings must be in normal form, and the result
      * will be in normal form.
      */
+    // 拼接父子路径。|path|最终是一个规范化的|parent + '/' + child|路径
+    // 注：子路径没有所谓的绝对路径，它始终需要和父路径进行拼接（除非父路径为"\"，没有拼接的必要）
     public abstract String resolve(String parent, String child);
 
     /**
@@ -77,6 +83,8 @@ abstract class FileSystem {
      * still has slash separators; code in the File class will translate them
      * after this method returns.
      */
+    // 对给定的|URI|路径字符串进行处理。在|UNIX|中，去除结尾"/"字符
+    // 注：在|WIN|中，会将"/c:/foo"转换为"c:/foo"
     public abstract String fromURIPath(String path);
 
 
@@ -91,8 +99,15 @@ abstract class FileSystem {
      * Resolve the given abstract pathname into absolute form.  Invoked by the
      * getAbsolutePath and getCanonicalPath methods in the File class.
      */
+    // 获取|f|文件的绝对路径
+    // 注：若|f|文件的路径是相对路径，自定拼接父目录|System.getProperty("user.dir")|
     public abstract String resolve(File f);
 
+    // 获取文件路径的绝对唯一的标准规范路径名。此方法，首先将此路径名转换为绝对形式，就像调
+    // 用|getAbsolutePath()|方法一样，然后以系统相关的方式将其映射到其唯一路径上
+    // 注：如果路径中包含"."或".."路径表示法，则会从路径名中删除，并使用真实路径代替。另外，
+    // 比较重要的是，它还会解析软链接（在|UNIX|平台上）以及将驱动器号（在|Win|平台上），将
+    // 它们转换为标准实际路径
     public abstract String canonicalize(String path) throws IOException;
 
 

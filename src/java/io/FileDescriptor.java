@@ -43,10 +43,20 @@ import java.util.List;
  * @see     java.io.FileOutputStream
  * @since   JDK1.0
  */
+// 虚拟机中用来对文件定位的实体。其内部|fd|字段，是操作系统的文件描述符（句柄）。它可以是一个打开的
+// 普通|file|或者|socket|或者|pipe|字符设备。主要用在|FileInputStream, FileOutputStream|
+// 中，你不应该自己创建|FileDescriptor|实例，因为系统得文件描述符由流对象|native|关联
+// 注：对|fd|的操作，在|FD|的所有者|native|中进行。比如：|FileInputStream.open0()|
+// 注：所有共享同一个|FD|的流对象中有一个被|GC|（或关闭）时，会触发所有流对象释放其文件描述符资源
 public final class FileDescriptor {
-
+    // 映射到操作系统中的文件描述符
+    // 注：对它的赋值，通常在|native|中进行。比如：|FileInputStream.open0()|
     private int fd;
 
+    // 当前|FD|被绑定的流对象。比如，|FileInputStream, FileOutputStream|
+    // 注：只有一个绑定流时，它会被存储到|parent|中；若有多个流对象共享此|FD|，所有流对象会被存储
+    // 到|otherParents|列表中
+    // 注：可实现，共享此|FD|的所有流对象中有一个被关闭时，会触发所有流对象释放其文件描述符资源
     private Closeable parent;
     private List<Closeable> otherParents;
     private boolean closed;
@@ -128,9 +138,16 @@ public final class FileDescriptor {
      *        buffers have been synchronized with physical media.
      * @since     JDK1.1
      */
+    // 强制系统缓冲区的数据与底层设备同步。此方法会等待|FileDescriptor|的所有修改数据和属性写入相
+    // 关设备后返回。特别是，如果此|FileDescriptor|指的是物理存储介质，例如文件系统中的文件，则直
+    // 到与此|FileDescriptor|关联的缓冲区的所有内存中修改副本都已写入物理介质后，才会返回
+    // 注：同步仅影响|FileDescriptor|下游的缓冲区（即，与系统相关缓冲区）。如果应用程序正在执行任
+    // 何内存缓存（例如|BufferedOutputStream|），则必须将这些缓冲区刷新到|FileDescriptor|（例
+    // 如，通过调用|OutputStream.flush()|），然后才能同步这些数据
     public native void sync() throws SyncFailedException;
 
     /* This routine initializes JNI field offsets for the class */
+    // 用于初始化|FileDescriptor.fd|字段偏移，之后可根据该偏移和|FileDescriptor|实例获取|fd|字段的引用
     private static native void initIDs();
 
     static {
@@ -171,6 +188,8 @@ public final class FileDescriptor {
      * parent reference is added to otherParents when
      * needed to make closeAll simpler.
      */
+    // 将一个流绑定到此|FD|上，用于跟踪
+    // 注：可实现，共享此|FD|的所有流对象中有一个被关闭时，会触发所有流对象释放其文件描述符资源
     synchronized void attach(Closeable c) {
         if (parent == null) {
             // first caller gets to do this
@@ -190,13 +209,19 @@ public final class FileDescriptor {
      *
      * The caller closeable gets to call close0().
      */
+    // 遍历共享此|FD|的所有流对象，并对每个流对象调用|close0()|
     @SuppressWarnings("try")
     synchronized void closeAll(Closeable releaser) throws IOException {
+        // 此|closed|状态位，非线程安全。不过流对象的|close0()|方法一般都是可重入的，即第一个关闭
+        // 后，|fd|就会被设置成-1，重复调用直接跳过
         if (!closed) {
             closed = true;
             IOException ioe = null;
             try (Closeable c = releaser) {
                 if (otherParents != null) {
+                    // 遍历共享此|FD|的所有流对象，并对每个流对象调用|close0()|
+                    // 注：没有对|parent|单独处理。原因：若|otherParents|有值，说明|parent|已
+                    // 经被复制到|otherParents|中；若仅存在|parent|，调用|c.close0()|即可
                     for (Closeable referent : otherParents) {
                         try {
                             referent.close();

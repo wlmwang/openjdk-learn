@@ -67,16 +67,37 @@ import java.util.stream.StreamSupport;
  * @since       JDK1.1
  */
 
+// 带缓冲区的输入流（读取）。是一个字符流、处理流。主要用于装饰底层流来增加缓存特性。  线程安全
+// 注：算法、接口与|BufferedInputStream|基本相同，区别是本类用于处理|char|类型数据
 public class BufferedReader extends Reader {
 
     private Reader in;
 
+    // 缓冲区的字符数组
+    // 注：通常情况下，缓冲区是不会自动扩容的。但若设置的"标记上限|marklimit|"大于现有的缓冲区内存，
+    // 则在缓冲区被用完时，会触发自动扩容，扩容的上限为|marklimit|大小
     private char cb[];
+
+    // 缓冲区当前读取索引。即，要从|buf|数组读取的下一个字符的索引。是一个非负值，且不会超过|nChars|
+    // 注：|buf[nextChar]|是下一个读取的字节
+    // 从底层流读取数据写入到缓冲区的尾部索引
+    // 注：缓冲区中|buf[0:nChars]|数据，是从代理的底层的流获得的输入数据
     private int nChars, nextChar;
 
     private static final int INVALIDATED = -2;
     private static final int UNMARKED = -1;
+    // 最后一个调用标记方法|mark()|时|nextChar|字段的值。该值始终在|-1~nextChar|的范围内。如
+    // 果输入流中没有标记位置，则该字段为|-1|；如果输入流中有标记位置，则|buf[markedChar]|是重
+    // 置操作后要作为输入提供的第一个字节
+    // 注：如果|markedChar|不是|-1|，那么从位置|buf[markedChar]|到|buf[nextChar-1]|的所
+    // 有字节都必须保留在缓冲区中。除非，从标记开始后，从底层流中读取了超过|readAheadLimit|数据，
+    // 而一直又没有使用过重置功能，此时标记将被丢弃（即，缓冲区中最多存储已读的数据不能超过|readAheadLimit|
+    // 字节）
+    // 注：可以通过|mark()|在缓冲区的一个位置进行标记，再使用|reset()|重置到该偏移位置。支撑预读
     private int markedChar = UNMARKED;
+
+    // 允许的最大回退（预读）字符长度的限制。即，缓冲区中最多存储已读的数据不能超过|readAheadLimit|字节
+    // 注：预读，顾名思义，读取数据后，你可以回退再次读取该数据
     private int readAheadLimit = 0; /* Valid only when markedChar > 0 */
 
     /** If the next character is a line feed, skip it */

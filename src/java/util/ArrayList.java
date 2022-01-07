@@ -228,7 +228,7 @@ public class ArrayList<E> extends AbstractList<E>
      */
     // 系统在确保能容纳|minCapacity|个元素时，自行判断容量是否需要扩容
     public void ensureCapacity(int minCapacity) {
-        // 容器的最小容量值。DEFAULTCAPACITY_EMPTY_ELEMENTDATA 来标识容器是默认构造的，其最小容量为10
+        // 容器的最小容量值。|DEFAULTCAPACITY_EMPTY_ELEMENTDATA|来标识容器是默认构造的，其最小容量为|10|
         int minExpand = (elementData != DEFAULTCAPACITY_EMPTY_ELEMENTDATA)
             // any size if not default element table
             ? 0
@@ -244,8 +244,8 @@ public class ArrayList<E> extends AbstractList<E>
 
     // 系统在确保能容纳|minCapacity|个元素时，自行判断容量是否需要扩容
     private void ensureCapacityInternal(int minCapacity) {
-        // 默认构造的容器，默认容量为10（不能低于10）
-        // 相比ensureCapacity()公共的方法，minCapacity不可能为0
+        // 默认构造的容器，默认容量为|10|（不能低于|10|）
+        // 注：相比|ensureCapacity()|公共的方法，|minCapacity|不可能为|0|
         if (elementData == DEFAULTCAPACITY_EMPTY_ELEMENTDATA) {
             minCapacity = Math.max(DEFAULT_CAPACITY, minCapacity);
         }
@@ -259,7 +259,8 @@ public class ArrayList<E> extends AbstractList<E>
         modCount++;
 
         // overflow-conscious code
-        // 此处考虑了溢出风险。即，除了真正的需要扩容场景中，当|minCapacity|为负数，两个整数之和溢出4字节，结果也将大于0
+        // 此处有溢出风险。即，除了真正的需要扩容场景中；当|minCapacity|为负数，两数之差变
+        // 成了之和，导致溢出使整个表达式大于|0|，从而也将执行|grow()|
         if (minCapacity - elementData.length > 0)
             grow(minCapacity);
     }
@@ -270,8 +271,9 @@ public class ArrayList<E> extends AbstractList<E>
      * Attempts to allocate larger arrays may result in
      * OutOfMemoryError: Requested array size exceeds VM limit
      */
-    // 数组对象对比普通的类有一个额外的元数据，用于表示数组的大小
-    // 数组的最大尺寸为2^31，但是需要8bytes的存储大小表示数组的长度等元数据，所以数组的大小定义为Integer.MAX_VALUE-8
+    // 要分配的字节数组的上限
+    // 注：数组对象对比普通的类有一个额外的元数据，用于表示数组的大小。数组的最大尺寸为|2^31|，但
+    // 是需要|8|字节的空间存储数组的长度等元数据，所以数组最大为|Integer.MAX_VALUE-8|
     private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
 
     /**
@@ -284,17 +286,23 @@ public class ArrayList<E> extends AbstractList<E>
         // overflow-conscious code
         int oldCapacity = elementData.length;
 
-        // 新的数组容量为老容量的1.5倍。考虑了溢出风险，即，当扩容到1.5的整数溢出，它将变成负数
+        // 新的数组容量为老容量的|1.5|倍
+        // 注：有溢出风险。即，当扩容到|1.5|的整数溢出，它将变成负数
         int newCapacity = oldCapacity + (oldCapacity >> 1);
-        // 新数组容量为手动设置的最小容量与1.5倍老容量中的较大值。考虑了溢出风险，即，当minCapacity为负数，两个整数之和溢出4字节，结果也将小于0
+
+        // 新数组容量为手动设置的最小容量与|1.5|倍老容量中的较大值
+        // 注：有益的溢出风险。即，当|newCapacity|为负数，两个整数之和溢出|4|字节，结果也将小于|0|
         if (newCapacity - minCapacity < 0)
             newCapacity = minCapacity;
-        // 新的数组容量超过MAX_ARRAY_SIZE大小，进入大容量扩容逻辑。当newCapacity为负数时，结果将会大于0
-        // 注：这里的 hugeCapacity() 也是考虑溢出风险的最终处理函数
+
+        // 新的数组容量超过|MAX_ARRAY_SIZE|大小，进入大容量扩容逻辑
+        // 注：有溢出风险。即，当|newCapacity|为负数时，结果将会大于|0|，从而也将执行|hugeCapacity()|
         if (newCapacity - MAX_ARRAY_SIZE > 0)
             newCapacity = hugeCapacity(minCapacity);
+
         // minCapacity is usually close to size, so this is a win:
-        // 返回的是重新申请的一块内存，他的数据拷贝自原始的数组数据（底层使用System.arraycopy进行按字节拷贝）
+        // 重新申请的一块内存，并将原始数据拷贝自该内存中
+        // 注：底层使用|System.arraycopy|进行按字节拷贝
         elementData = Arrays.copyOf(elementData, newCapacity);
     }
 
@@ -302,7 +310,8 @@ public class ArrayList<E> extends AbstractList<E>
         // 如果|minCapacity|小于0，抛出溢出异常
         if (minCapacity < 0) // overflow
             throw new OutOfMemoryError();
-        // 数组容量最大不会超过Integer.MAX_VALUE
+
+        // 数组容量最大不会超过|Integer.MAX_VALUE|
         return (minCapacity > MAX_ARRAY_SIZE) ?
             Integer.MAX_VALUE :
             MAX_ARRAY_SIZE;

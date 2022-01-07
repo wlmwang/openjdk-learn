@@ -146,6 +146,10 @@ import sun.security.action.GetPropertyAction;
  * @since   JDK1.0
  */
 
+// 文件和目录路径名的抽象表示。它提供了一个抽象的用户界面，以屏蔽使用依赖于系统的路径名字符串来命名文
+// 件和目录。即，它提供了一个分层路径名的、抽象的、独立于系统的用户视图
+// 注：抽象路径名有两个组成部分：一个可选的系统相关前缀字符串：例如|UNIX|根目录的"/"、磁盘驱动器说明
+// 符、或|Windows UNC|路径名的"\\\\"；以及使用|file.separator|分割的零个或多个字符串序列
 public class File
     implements Serializable, Comparable<File>
 {
@@ -182,8 +186,12 @@ public class File
      *
      * @return true if the file path is invalid.
      */
+    // 检查文件是否有无效路径。目前对文件路径的检查非常有限，只包括|NUL|字符检查。返回|true|意味
+    // 着路径绝对无效。但是返回|false|并不能保证路径有效
     final boolean isInvalid() {
-        if (status == null) {
+        if (status == null) {   // 缓存
+            // 路径中不能含有'\u0000'空字符串
+            // 注：该字符是一个非法的|c-style|字符串，在路径中也不应该存在
             status = (this.path.indexOf('\u0000') < 0) ? PathStatus.CHECKED
                                                        : PathStatus.INVALID;
         }
@@ -194,6 +202,7 @@ public class File
      * The length of this abstract pathname's prefix, or zero if it has no
      * prefix.
      */
+    // 抽象路径名组成部分：一个可选的系统相关前缀字符串
     private final transient int prefixLength;
 
     /**
@@ -212,6 +221,7 @@ public class File
      *
      * @see     java.lang.System#getProperty(java.lang.String)
      */
+    // 路径分隔符。|UNIX|下典型为"/"
     public static final char separatorChar = fs.getSeparator();
 
     /**
@@ -231,6 +241,7 @@ public class File
      *
      * @see     java.lang.System#getProperty(java.lang.String)
      */
+    // 多路径间的分隔符。|UNIX|下典型为";"
     public static final char pathSeparatorChar = fs.getPathSeparator();
 
     /**
@@ -272,11 +283,17 @@ public class File
      * @throws  NullPointerException
      *          If the <code>pathname</code> argument is <code>null</code>
      */
+    // 基于抽象路径，创建一个文件对象
     public File(String pathname) {
         if (pathname == null) {
             throw new NullPointerException();
         }
+
+        // 将给定的路径进行通用处理
+        // 包括：将连续'\\'字符转换成'\'；将结尾所有'\'字符去除
         this.path = fs.normalize(pathname);
+
+        // 抽象路径名组成部分：一个可选的系统相关前缀字符串。计算其长度
         this.prefixLength = fs.prefixLength(this.path);
     }
 
@@ -312,10 +329,14 @@ public class File
      * @throws  NullPointerException
      *          If <code>child</code> is <code>null</code>
      */
+    // 基于父、子抽象路径，创建一个文件对象
     public File(String parent, String child) {
         if (child == null) {
             throw new NullPointerException();
         }
+
+        // 拼接父子路径。|path|最终是一个通用化处理后的|parent + '/' + child|路径
+        // 注：子路径没有所谓的绝对路径，它始终需要和父路径进行拼接（除非父路径为"\"，没有拼接的必要）
         if (parent != null) {
             if (parent.equals("")) {
                 this.path = fs.resolve(fs.getDefaultParent(),
@@ -327,6 +348,8 @@ public class File
         } else {
             this.path = fs.normalize(child);
         }
+
+        // 抽象路径名组成部分：一个可选的系统相关前缀字符串。计算其长度
         this.prefixLength = fs.prefixLength(this.path);
     }
 
@@ -355,6 +378,7 @@ public class File
      * @throws  NullPointerException
      *          If <code>child</code> is <code>null</code>
      */
+    // 基于"父路径"和子路径，创建一个文件对象。其中"父路径"是一个文件对象
     public File(File parent, String child) {
         if (child == null) {
             throw new NullPointerException();
@@ -409,28 +433,48 @@ public class File
      * @see java.net.URI
      * @since 1.4
      */
+    // 基于统一资源标志符的地址，创建一个文件对象
+    // 注：参数|uri|必须是一个"file://"协议的统一资源标志符
     public File(URI uri) {
-
         // Check our many preconditions
+        // 地址必须是一个绝对路径。即，必须以协议头开始的路径
         if (!uri.isAbsolute())
             throw new IllegalArgumentException("URI is not absolute");
+
+        // 地址是一个不透明地址，立即抛出异常
+        // 注："http://root:password@localhost:8080/home/login?id=1&name=foo#fragment"是一个分层地址，Opaque为空
+        // "ibsn:3242-4242-3244sf3-324s?pb=2021-05-28"是一个不透明地址，Opaque=3242-4242-3244sf3-324s
         if (uri.isOpaque())
             throw new IllegalArgumentException("URI is not hierarchical");
+
+        // 统一资源标志符的地址|URI|协议头必须是"file"
         String scheme = uri.getScheme();
         if ((scheme == null) || !scheme.equalsIgnoreCase("file"))
             throw new IllegalArgumentException("URI scheme is not \"file\"");
+
+        // 统一资源标志符的地址|URI|中有转义字符
         if (uri.getAuthority() != null)
             throw new IllegalArgumentException("URI has an authority component");
+
+        // 地址中不能存在定位符|fragment|
         if (uri.getFragment() != null)
             throw new IllegalArgumentException("URI has a fragment component");
+
+        // 地址中不能存在查询字符|query|
         if (uri.getQuery() != null)
             throw new IllegalArgumentException("URI has a query component");
+
+        // 路径地址不能为空
         String p = uri.getPath();
         if (p.equals(""))
             throw new IllegalArgumentException("URI path component is empty");
 
         // Okay, now initialize
+        // 对给定的|URI|路径字符串进行处理。在|UNIX|中，去除结尾"/"字符
+        // 注：在|WIN|中，会将"/c:/foo"转换为"c:/foo"
         p = fs.fromURIPath(p);
+
+        // 将路径分隔符替换位与操作系统相关的分隔符
         if (File.separatorChar != '/')
             p = p.replace('/', File.separatorChar);
         this.path = fs.normalize(p);
@@ -450,6 +494,7 @@ public class File
      *          pathname, or the empty string if this pathname's name sequence
      *          is empty
      */
+    // 获取抽象路径中的文件名。即，最后一个文件分隔符起始到结束的字符串
     public String getName() {
         int index = path.lastIndexOf(separatorChar);
         if (index < prefixLength) return path.substring(prefixLength);
@@ -469,6 +514,8 @@ public class File
      *          abstract pathname, or <code>null</code> if this pathname
      *          does not name a parent
      */
+    // 获取抽象路径中的目录名。即，从开始到最后一个文件分隔符结束的字符串
+    // 注：若原始路径是一个目录，则该方法将返回父目录；若原始路径是一个文件，则该方法将返回文件所在目录
     public String getParent() {
         int index = path.lastIndexOf(separatorChar);
         if (index < prefixLength) {
@@ -495,9 +542,15 @@ public class File
      *
      * @since 1.2
      */
+    // 获取抽象路径的父目录，并基于此创建一个文件对象。如果此路径没有父目录，则返回null
     public File getParentFile() {
+        // 获取到路径的父目录
         String p = this.getParent();
+
+        // 如果此路径没有父目录，则返回null
         if (p == null) return null;
+
+        // 返回基于此父目录为路径的基础文件类
         return new File(p, this.prefixLength);
     }
 
@@ -508,6 +561,10 @@ public class File
      *
      * @return  The string form of this abstract pathname
      */
+    // 获取抽象路径字符串
+    // 注：如果字符串|pathname|用于创建|File|对象，则|getPath()|只返回|pathname|参数，例
+    // 如，|File file = new File(pathname)|对象，|getPath()|直接返回参数|pathname|
+    // 注：如果|URI|用作参数，则它将删除协议，并返回文件名
     public String getPath() {
         return path;
     }
@@ -525,6 +582,9 @@ public class File
      * @return  <code>true</code> if this abstract pathname is absolute,
      *          <code>false</code> otherwise
      */
+    // 判断抽象路径是否是绝对路径。绝对路径的定义取决于系统。在|UNIX|系统上，如果前缀为"/"，则路
+    // 径是绝对路径名。在|Win|系统上，如果路径名的前缀是驱动器后跟"\\"，或者其前缀是"\\\\"，则
+    // 路径是绝对路径名
     public boolean isAbsolute() {
         return fs.isAbsolute(this);
     }
@@ -552,6 +612,8 @@ public class File
      *
      * @see     java.io.File#isAbsolute()
      */
+    // 获取抽象路径的绝对路径字符串
+    // 注：若抽象路径是相对路径，自动拼接父目录|System.getProperty("user.dir")|
     public String getAbsolutePath() {
         return fs.resolve(this);
     }
@@ -568,6 +630,8 @@ public class File
      *
      * @since 1.2
      */
+    // 获取抽象路径的绝对路径字符串，并基于它创建一个新的基础文件类返回
+    // 注：若抽象路径是相对路径，自动拼接父目录|System.getProperty("user.dir")|
     public File getAbsoluteFile() {
         String absPath = getAbsolutePath();
         return new File(absPath, fs.prefixLength(absPath));
@@ -611,7 +675,15 @@ public class File
      * @since   JDK1.1
      * @see     Path#toRealPath
      */
+    // 获取抽象路径的规范路径字符串。规范路径既是绝对的又是唯一的。规范形式的精确定义取决于系统。底
+    // 层实现上，此方法，首先将此路径转换为绝对路径，就像调用|getAbsolutePath()|方法一样，然后
+    // 以依赖于系统的方式将其映射到其唯一路径上
+    // 注：规范路径是指：从路径中删除"."或".."的路径表示法，使用真实路径代替；并且，它还会解析软链
+    // 接（在|UNIX|平台上）以及将驱动器号（在|Win|平台上），将它们转换为标准实际路径
+    // 注：这可能会导致|I/O|异常，因为底层需要执行文件系统查询
+    // 注：底层核心是使用了|realpath()|系统调用
     public String getCanonicalPath() throws IOException {
+        // 路径检查
         if (isInvalid()) {
             throw new IOException("Invalid file path");
         }
@@ -639,11 +711,14 @@ public class File
      * @since 1.2
      * @see     Path#toRealPath
      */
+    // 获取文件的抽象路径的唯一的标准规范路径，并基于它创建一个新的基础文件类返回
+    // 注：这可能会导致|I/O|异常，因为底层需要执行文件系统查询
     public File getCanonicalFile() throws IOException {
         String canonPath = getCanonicalPath();
         return new File(canonPath, fs.prefixLength(canonPath));
     }
 
+    // 拼接成以"/"开头的绝对路径，若是一个目录，以"/"结尾
     private static String slashify(String path, boolean isDirectory) {
         String p = path;
         if (File.separatorChar != '/')
@@ -678,6 +753,9 @@ public class File
      * {@link #toURI() toURI} method, and then converting the URI into a URL
      * via the {@link java.net.URI#toURL() URI.toURL} method.
      */
+    // 构造一个基于当前抽象路径的|URL|表示法实体。|URL|的确切形式取决于系统。如果可以确定由这个抽
+    // 象路径表示的文件是一个目录，那么生成的|URL|将以斜杠结尾
+    // 注：此方法不会自动转义|URL|中的非法字符。建议首先通过|toURI()|，然后通过|URI.toURL()|
     @Deprecated
     public URL toURL() throws MalformedURLException {
         if (isInvalid()) {
@@ -726,9 +804,17 @@ public class File
      * @see java.net.URI#toURL()
      * @since 1.4
      */
+    // 构造一个基于当前抽象路径的|URI|表示法实体。|URI|的确切形式取决于系统。如果可以确定由这个抽
+    // 象路径表示的文件是一个目录，那么生成的|URI|将以斜杠结尾。另外，对于给定的文件对象|f|，可以
+    // 保证(f.toURI()).equals(f.getAbsoluteFile())
+    // 注：|URI|是一个绝对路径的、分层的、其协议为|file|的，用于表示这个抽象路径名的路径，且它不含
+    // 有|authority, query, and fragment|组件
     public URI toURI() {
         try {
+            // 绝对路径
             File f = getAbsoluteFile();
+
+            // 获取绝对路径。即，将路径拼接成以"/"开头的绝对路径，若是一个目录，以"/"结尾
             String sp = slashify(f.getPath(), f.isDirectory());
             if (sp.startsWith("//"))
                 sp = "//" + sp;
@@ -757,6 +843,8 @@ public class File
      *          java.lang.SecurityManager#checkRead(java.lang.String)}</code>
      *          method denies read access to the file
      */
+    // 检查应用程序是否可以读取此抽象路径表示的文件。在某些平台上，可以使用特殊权限启动|Java|虚拟
+    // 机，允许它修改标记为不可读的文件。因此，即使文件被标记为不可读，此方法也可能返回|true|
     public boolean canRead() {
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
@@ -785,6 +873,8 @@ public class File
      *          java.lang.SecurityManager#checkWrite(java.lang.String)}</code>
      *          method denies write access to the file
      */
+    // 检查应用程序是否可以修改此抽象路径表示的文件。在某些平台上，可以使用特殊权限启动|Java|虚拟
+    // 机，允许它修改标记为只读的文件。因此，即使文件被标记为只读，此方法也可能返回|true|
     public boolean canWrite() {
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
@@ -808,6 +898,8 @@ public class File
      *          java.lang.SecurityManager#checkRead(java.lang.String)}</code>
      *          method denies read access to the file or directory
      */
+    // 检查抽象路径表示的文件或目录是否存在。当且仅当抽象路径表示的文件或目录存在时才为|true|；否则
+    // 为|false|
     public boolean exists() {
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
@@ -816,6 +908,9 @@ public class File
         if (isInvalid()) {
             return false;
         }
+
+        // 若当前路径文件存在，返回true
+        // 注：|getBooleanAttributes()|返回了当前文件的部分文件属性
         return ((fs.getBooleanAttributes(this) & FileSystem.BA_EXISTS) != 0);
     }
 
@@ -838,6 +933,10 @@ public class File
      *          java.lang.SecurityManager#checkRead(java.lang.String)}</code>
      *          method denies read access to the file
      */
+    // 检查抽象路径的文件是否为一个目录。当且仅当此抽象路径表示的文件存在并且是目录时才为|true|；否
+    // 则为|false|
+    // 注：如果需要将|I/O|异常与文件不是目录的情况区分开来，或者同时需要同一文件的多个属性，则可以
+    // 使用|Files.readAttributes()|方法
     public boolean isDirectory() {
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
@@ -846,6 +945,9 @@ public class File
         if (isInvalid()) {
             return false;
         }
+
+        // 若当前路径是文件类型，返回true
+        // 注：|getBooleanAttributes()|返回了当前文件的部分文件属性
         return ((fs.getBooleanAttributes(this) & FileSystem.BA_DIRECTORY)
                 != 0);
     }
@@ -871,6 +973,11 @@ public class File
      *          java.lang.SecurityManager#checkRead(java.lang.String)}</code>
      *          method denies read access to the file
      */
+    // 检查抽象路径的文件是否为普通文件。当且仅当此抽象路径表示的文件存在并且是普通文件时才为|true|；否
+    // 则为|false|。如果文件不是目录，并且还满足其依赖系统的标准，则是普通文件
+    // 注：如果需要区分|I/O|异常与文件不是普通文件的情况，或者同时需要同一个文件的多个属性，则可以
+    // 使用|Files.readAttributes()|方法
+    // 注：|Java|应用程序创建的任何非目录文件都是普通文件
     public boolean isFile() {
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
@@ -879,6 +986,9 @@ public class File
         if (isInvalid()) {
             return false;
         }
+
+        // 若当前路径是文件类型，返回true
+        // 注：|getBooleanAttributes()|返回了当前文件的部分文件属性
         return ((fs.getBooleanAttributes(this) & FileSystem.BA_REGULAR) != 0);
     }
 
@@ -900,6 +1010,10 @@ public class File
      *
      * @since 1.2
      */
+    // 检查抽象路径名的文件是否为隐藏文件。隐藏的确切定义取决于系统。当且仅当根据底层平台的约定此抽象
+    // 路径表示的文件是隐藏时才为|true|
+    // 注：在|UNIX|系统上，如果文件名称以句点字符|'.'|开头，则该文件被认为是隐藏的。在|Win|系统上，
+    // 如果文件在文件系统中被标记为隐藏文件，则该文件被认为是隐藏的
     public boolean isHidden() {
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
@@ -908,6 +1022,9 @@ public class File
         if (isInvalid()) {
             return false;
         }
+
+        // 若当前路径是文件类型，返回true
+        // 注：|getBooleanAttributes()|返回了当前文件的部分文件属性
         return ((fs.getBooleanAttributes(this) & FileSystem.BA_HIDDEN) != 0);
     }
 
@@ -932,6 +1049,10 @@ public class File
      *          java.lang.SecurityManager#checkRead(java.lang.String)}</code>
      *          method denies read access to the file
      */
+    // 获取抽象路径表示的文件上次修改的时间（毫秒单位）。如果文件不存在或发生|I/O|错误，返回|0L|
+    // 注：如果需要区分|I/O|异常、文件不存在|0L|的情况，或者同时需要同一个文件的多个属性，或者需要
+    // 上次访问的时间或创建时间，则可以使用|Files.readAttributes()|方法
+    // 注：底层使用|stat64()|系统调用，返回|stat64.st_mtime|
     public long lastModified() {
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
@@ -963,6 +1084,11 @@ public class File
      *          java.lang.SecurityManager#checkRead(java.lang.String)}</code>
      *          method denies read access to the file
      */
+    // 获取抽象路径表示的文件的长度（字节单位）。如果文件不存在或发生|I/O|错误，返回|0L|
+    // 注：如果需要区分|I/O|异常、文件不存在和长度为|0L|的情况，或者同时需要同一文件的多个属性，则
+    // 可以使用|Files.readAttributes()|方法
+    // 注：如果路径是一个目录，返回值未定义；部分操作系统，会把设备或管道等等类型的文件，也返回|0L|
+    // 注：底层使用|stat64()|系统调用，返回|stat64.st_size|
     public long length() {
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
@@ -1003,12 +1129,17 @@ public class File
      *
      * @since 1.2
      */
+    // 当且仅当抽象路径的文件不存在时，以原子方式创建该空文件。检查文件是否存在以及创建文件是原子操
+    // 作。如果文件不存在并且创建成功，返回|true|；如果指定文件已存在或创建失败，返回|false|
+    // 注：同一个目录下，不能含有同名的文件或目录。哪怕一个是目录，一个是文件也不行
     public boolean createNewFile() throws IOException {
         SecurityManager security = System.getSecurityManager();
         if (security != null) security.checkWrite(path);
         if (isInvalid()) {
             throw new IOException("Invalid file path");
         }
+        // 底层使用|open(path, O_RDWR|O_CREAT|O_EXCL,0666)|系统调用
+        // 注：创建文件成功后，会被自动|close()|关闭掉
         return fs.createFileExclusively(path);
     }
 
@@ -1030,6 +1161,11 @@ public class File
      *          java.lang.SecurityManager#checkDelete}</code> method denies
      *          delete access to the file
      */
+    // 删除抽象路径表示的文件或目录。如果此路径名表示一个目录，则该目录必须为空才能被删除。当且仅当
+    // 文件或目录被删除成功时，返回|true|，否则为|false|
+    // 注：|java.nio.file.Files|类也定义了|delete()|，无法删除文件时会抛出|IOException|，
+    // 这对于错误报告和诊断无法删除文件的原因很有用
+    // 注：底层使用的|remove()|在操作目录时，类似于|rmdir()|；操作文件时，类似于|unlink()|
     public boolean delete() {
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
@@ -1038,6 +1174,7 @@ public class File
         if (isInvalid()) {
             return false;
         }
+        // 底层使用|remove()|系统调用
         return fs.delete(this);
     }
 
@@ -1068,6 +1205,9 @@ public class File
      *
      * @since 1.2
      */
+    // 注册在虚拟机终止时，要删除的当前抽象路径表示的文件（或目录）。文件（或目录）的删除顺序与它们
+    // 注册的顺序相反。重复注册待删除文件（或目录），只有第一个有效（使用|LinkedHashSet|容器）
+    // 注：仅在虚拟机正常终止时才会尝试删除
     public void deleteOnExit() {
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
@@ -1111,6 +1251,11 @@ public class File
      *          SecurityManager#checkRead(String)} method denies read access to
      *          the directory
      */
+    // 获取抽象路径表示的目录下文件和目录的字符串数组。如果抽象路径不是目录，或者发生|I/O|错误，都会
+    // 返回|null|。结果数组中不包括目录本身和其父目录的名称
+    // 注：每个字符串都是一个文件名，而不是一个完整的路径；并且无法保证顺序
+    // 注：|java.nio.file.Files|类定义了|newDirectoryStream()|方法，用于打开目录并遍历目录中
+    // 的文件名。这在处理非常大的目录时可能会使用较少的资源，而在处理远程目录时可能会更灵敏
     public String[] list() {
         SecurityManager security = System.getSecurityManager();
         if (security != null) {

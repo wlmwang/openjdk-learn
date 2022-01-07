@@ -32,20 +32,29 @@ package java.io;
  * @author      Herb Jellinek
  * @since       JDK1.1
  */
+// 字符数组输入流（读取）。是一个字符流、节点流。字符数组由外部传入。  线程安全
+// 注：算法、接口与|ByteArrayInputStream|基本相同，区别是本类用于处理|char|类型数据
 public class CharArrayReader extends Reader {
     /** The character buffer. */
+    // 外部提供的输入流字符数组。|buf[pos:count-1]|是可以从流中读取的字符
     protected char buf[];
 
     /** The current buffer position. */
+    // 要从输入流字符数组读取的下一个字符的索引。是一个非负值，且不会超过|count|
+    // 注：|buf[pos]|是下一个读取的字符
     protected int pos;
 
     /** The position of mark in buffer. */
+    // 输入流中当前标记的位置。偏移量默认是|0|
+    // 注：可以通过|mark()|在缓冲区的一个位置进行标记，再使用|reset()|重置到该偏移位置。支撑预读
     protected int markedPos = 0;
 
     /**
      *  The index of the end of this buffer.  There is not valid
      *  data at or beyond this index.
      */
+    // 输入流字符数组的超尾索引。是一个非负值，且不会超过|buf.length|
+    // 注：超尾索引，即最后一个索引是无法访问的，代表边界（哨兵值）
     protected int count;
 
     /**

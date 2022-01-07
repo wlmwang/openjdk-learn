@@ -59,6 +59,7 @@ import sun.nio.cs.StreamDecoder;
  * @since       JDK1.1
  */
 
+// 装饰一个字节输入流，使其对外提供可指定具体编码方案的字符型输入流
 public class InputStreamReader extends Reader {
 
     private final StreamDecoder sd;

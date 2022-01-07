@@ -153,6 +153,7 @@ import java.util.concurrent.locks.AbstractQueuedSynchronizer;
  * @since 1.5
  * @author Doug Lea
  */
+// 闭锁
 public class CountDownLatch {
     /**
      * Synchronization control For CountDownLatch.

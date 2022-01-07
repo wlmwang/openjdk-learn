@@ -63,10 +63,13 @@ package java.io;
  * @since       JDK1.1
  */
 
+// 带缓冲区的输出流（写入）。是一个字符流、处理流。主要用于装饰底层流来增加缓存特性。  线程安全
+// 注：算法、接口与|BufferedOutputStream|基本相同，区别是本类用于处理|char|类型数据
 public class BufferedWriter extends Writer {
 
     private Writer out;
 
+    // 缓冲区的字节数组。默认大小为|8k|
     private char cb[];
     private int nChars, nextChar;
 

@@ -42,6 +42,7 @@ package java.io;
  * @author  Jonathan Payne
  * @since   JDK1.0
  */
+// 一个输入流的简单代理类。主要用于装饰一个底层的输入流，在其之上提供一些附加功能
 public
 class FilterInputStream extends InputStream {
     /**

@@ -45,16 +45,23 @@ import sun.nio.ch.FileChannelImpl;
  * @see     java.nio.file.Files#newInputStream
  * @since   JDK1.0
  */
+// 文件的输入流（读取）。是一个字节流、节点流
+// 注：不提供"标记/重置"的支持（回退特性）；直接|IO|支持，底层的|flush()|为空操作
+// 注：字节流，即以|8bit|（|1byte=8bit|）作为一个数据单元。数据流中最小的数据单元是字节
+// 注：根据是否直接处理数据，|IO|分为节点流和处理流。节点流是真正直接处理数据的；处理流是装饰加工节点流的
 public
 class FileInputStream extends InputStream
 {
     /* File Descriptor - handle to the open file */
+    // 一个|FileDescriptor|类型的对象，它是|Java|虚拟机用来对文件定位的
+    // 注：其内部|FileDescriptor.fd|字段，就是操作系统中的文件描述符
     private final FileDescriptor fd;
 
     /**
      * The path of the referenced file
      * (null if the stream is created with a file descriptor)
      */
+    // 文件的路径
     private final String path;
 
     private FileChannel channel = null;
@@ -89,6 +96,9 @@ class FileInputStream extends InputStream
      *               to the file.
      * @see        java.lang.SecurityManager#checkRead(java.lang.String)
      */
+    // 基于文件路径，创建一个文件的输入（读取）流对象
+    // 注：内部会立即打开该文件，并创建一个|FileDescriptor|对象来表示与此文件的连接
+    // 注：如果指定的文件不存在、或是一个目录、或由于某些原因无法打开，则抛出|FileNotFoundException|
     public FileInputStream(String name) throws FileNotFoundException {
         this(name != null ? new File(name) : null);
     }
@@ -120,7 +130,11 @@ class FileInputStream extends InputStream
      * @see        java.io.File#getPath()
      * @see        java.lang.SecurityManager#checkRead(java.lang.String)
      */
+    // 基于文件对象，创建一个文件的输入（读取）流对象
+    // 注：内部会立即打开该文件，并创建一个|FileDescriptor|对象来表示与此文件的连接
+    // 注：如果指定的文件不存在、或是一个目录、或由于某些原因无法打开，则抛出|FileNotFoundException|
     public FileInputStream(File file) throws FileNotFoundException {
+        // 获取文件路径
         String name = (file != null ? file.getPath() : null);
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
@@ -132,9 +146,17 @@ class FileInputStream extends InputStream
         if (file.isInvalid()) {
             throw new FileNotFoundException("Invalid file path");
         }
+
+        // 创建一个|FileDescriptor|对象来表示与此文件的连接
         fd = new FileDescriptor();
+
+        // 将当前流对象绑定到该文件描述符上
+        // 注：所有共享同一个|FD|的流对象中有一个被关闭时，会触发所有流对象释放其文件描述符资源
         fd.attach(this);
         path = name;
+
+        // 只读方式打开|name|路径的文件
+        // 注：底层使用|open64(path, O_RDONLY, 0666)|打开文件，并将描述符设置到|FileInputStream.fd.fd|
         open(name);
     }
 
@@ -162,6 +184,8 @@ class FileInputStream extends InputStream
      *                 file descriptor.
      * @see        SecurityManager#checkRead(java.io.FileDescriptor)
      */
+    // 使用文件描述符|fdObj|创建一个文件输入流，该文件描述符必须已经被打开
+    // 注：所有共享同一个|FD|的流对象中有一个被关闭时，会触发所有流对象释放其文件描述符资源
     public FileInputStream(FileDescriptor fdObj) {
         SecurityManager security = System.getSecurityManager();
         if (fdObj == null) {
@@ -177,6 +201,7 @@ class FileInputStream extends InputStream
          * FileDescriptor is being shared by streams.
          * Register this stream with FileDescriptor tracker.
          */
+        // 将当前流对象绑定到该文件描述符上
         fd.attach(this);
     }
 
@@ -184,6 +209,8 @@ class FileInputStream extends InputStream
      * Opens the specified file for reading.
      * @param name the name of the file
      */
+    // 核心：使用|open64(path, O_RDONLY, 0666)|打开文件，将描述符设置到|FileInputStream.fd.fd|
+    // 注：如果指定的文件不存在、或是一个目录、或由于某些原因无法打开，则抛出|FileNotFoundException|
     private native void open0(String name) throws FileNotFoundException;
 
     // wrap native call to allow instrumentation
@@ -191,6 +218,8 @@ class FileInputStream extends InputStream
      * Opens the specified file for reading.
      * @param name the name of the file
      */
+    // 只读方式打开|name|路径的文件
+    // 注：如果指定的文件不存在、或是一个目录、或由于某些原因无法打开，则抛出|FileNotFoundException|
     private void open(String name) throws FileNotFoundException {
         open0(name);
     }
@@ -203,10 +232,19 @@ class FileInputStream extends InputStream
      *             file is reached.
      * @exception  IOException  if an I/O error occurs.
      */
+    // 从输入流中读取下一个字节的数据，以|0~255|范围内的|int|值形式返回。如果已到达流末尾而没有
+    // 可用字节，则返回值|-1|。此方法会阻塞，直到输入数据可用、检测到流结束（关闭）或抛出异常为止
+    // 注：不使用类型|byte|，其的范围是|-128~127|不能覆盖|ASCII|码表
+    // 注：一个有效的单字节数据被转换成整型后不可能为|-1|，除非|read()|方法主动返回|-1|
     public int read() throws IOException {
         return read0();
     }
 
+    // 从输入流中读取下一个字节的数据，以|0~255|范围内的|int|值形式返回。如果已到达流末尾而没有
+    // 可用字节，则返回值|-1|。此方法会阻塞，直到输入数据可用、检测到流结束（关闭）或抛出异常为止
+    // 注：一个有效的单字节数据被转换成整型后不可能为|-1|，除非|read()|方法主动返回|-1|
+    // 核心：使用|read(fd, buf, 1)|读取文件|FileInputStream.fd.fd|的数据，返回实际读取的
+    // 字节数；若为|-1|，则表示已经读取到流末尾
     private native int read0() throws IOException;
 
     /**
@@ -216,6 +254,11 @@ class FileInputStream extends InputStream
      * @param len the number of bytes that are written
      * @exception IOException If an I/O error has occurred.
      */
+    // 从输入流中读取最多|len|个字节的数据到一个字节数组|b[off:off+len]|中。如果|len|不为零，
+    // 则该方法将阻塞，直到输入可用；如果|len|为零，方法将立即返回零
+    // 注：底层会自动进行数组|b|是否越界校验，即，方法可能会抛出|IndexOutOfBoundsException|
+    // 核心：使用|read(fd, buf, len)|读取文件|FileInputStream.fd.fd|的数据，读取的数据将
+    // 被拷贝到|b[off:off+len]|中。返回实际读取的字节数；若为|-1|，则表示已经读取到流末尾
     private native int readBytes(byte b[], int off, int len) throws IOException;
 
     /**
@@ -229,6 +272,10 @@ class FileInputStream extends InputStream
      *             the file has been reached.
      * @exception  IOException  if an I/O error occurs.
      */
+    // 从输入流中读取最多|b.length|个字节的数据到一个字节数组|b|中。此方法会阻塞，直到输入可用
+    // 注：返回实际读取的字节数；若为|-1|，则表示已经读取到流末尾
+    // 注：可能会抛出|IOException|的场景有：除文件结尾以外的任何原因而导致第一个字节也无法读取、
+    // 或者当前流已关闭、或者有|I/O|错误
     public int read(byte b[]) throws IOException {
         return readBytes(b, 0, b.length);
     }
@@ -251,6 +298,10 @@ class FileInputStream extends InputStream
      * <code>b.length - off</code>
      * @exception  IOException  if an I/O error occurs.
      */
+    // 从输入流中读取最多|len|个字节的数据到一个字节数组|b[off:off+len]|中。如果|len|不为零，
+    // 则该方法将阻塞，直到输入可用；如果|len|为零，方法将立即返回零
+    // 注：底层会自动进行数组|b|是否越界校验，即，方法可能会抛出|IndexOutOfBoundsException|
+    // 注：返回实际读取的字节数；若为|-1|，则表示已经读取到流末尾
     public int read(byte b[], int off, int len) throws IOException {
         return readBytes(b, off, len);
     }
@@ -279,6 +330,12 @@ class FileInputStream extends InputStream
      * @exception  IOException  if n is negative, if the stream does not
      *             support seek, or if an I/O error occurs.
      */
+    // 从输入流中跳过并丢弃|n|个字节的数据。如果|n|为负，则该方法将尝试向后偏移，如果文件在其当
+    // 前位置不支持向后偏移，则会抛出|IOException|；|n|可以为零。 返回实际跳过的字节数。如果
+    // 向前跳过，则返回正值；如果向后跳过，则返回负值
+    // 注：此方法可能跳过比当前文件中剩余的字节更多的字节。这不会产生任何异常，在跳过|EOF|后，尝
+    // 试从流中读取将返回|-1|，以指示文件结尾
+    // 核心：使用|lseek64()|设置文件|FileInputStream.fd.fd|的偏移量
     public native long skip(long n) throws IOException;
 
     /**
@@ -298,6 +355,11 @@ class FileInputStream extends InputStream
      * @exception  IOException  if this file input stream has been closed by calling
      *             {@code close} or an I/O error occurs.
      */
+    // 返回可以从此输入流读取或跳过的剩余字节数的估计值，而不会使下一次读取或跳过这么多字节时被阻塞
+    // 核心：区分|FileInputStream.fd.fd|的类型，分别做如下处理：
+    // 1.如果是常规的文件，则使用|fstat64()|总字节数，减去|lseek64()|偏移量
+    // 2.如果是|socket,pipe|等文件，则使用|ioctl|接受缓冲区总字节数，减去|lseek64()|偏移量
+    // 注：系统调用|ioctl(fd, FIONREAD, &n)|可以得到描述符|fd|的缓冲区里有多少字节要被读取
     public native int available() throws IOException;
 
     /**
@@ -312,6 +374,7 @@ class FileInputStream extends InputStream
      * @revised 1.4
      * @spec JSR-51
      */
+    // 关闭此文件输入流并释放与该流关联的所有系统资源。如果此流具有关联的通道，则该通道也将关闭
     public void close() throws IOException {
         synchronized (closeLock) {
             if (closed) {
@@ -319,10 +382,13 @@ class FileInputStream extends InputStream
             }
             closed = true;
         }
+
+        // 如果此流具有关联的通道，则该通道也将关闭
         if (channel != null) {
            channel.close();
         }
 
+        // 关闭此文件输入流，会触发释放与该流关联的所有系统资源
         fd.closeAll(new Closeable() {
             public void close() throws IOException {
                close0();
@@ -372,8 +438,14 @@ class FileInputStream extends InputStream
         }
     }
 
+    // 用于初始化|FileInputStream.fd|字段偏移量。之后可根据该偏移量和|FileInputStream|实例获取|fd|字段的引用
     private static native void initIDs();
 
+    // 关闭文件描述符，释放相应资源。可重入
+    // 核心：使用|close(fd)|关闭文件，并设置|FileInputStream.fd.fd=-1|
+    // 注：底层不会关闭|STDIN,STDOUT,STDERR|几个标准描述符。当需要执行关闭他们时，会将其重定位到|/dev/null|中
+    // 注：关闭|STDIN,STDOUT,STDERR|几个标准描述符不是一个好习惯。因为它们可能被很多第三方组件当作标准描述符在使用，
+    // 若把它们关闭，而后又被复用到非标准设备上，这十分危险
     private native void close0() throws IOException;
 
     static {
@@ -387,6 +459,7 @@ class FileInputStream extends InputStream
      * @exception  IOException  if an I/O error occurs.
      * @see        java.io.FileInputStream#close()
      */
+    // 确保引用在|GC|时，调用此文件输入流的|close|方法以回收资源
     protected void finalize() throws IOException {
         if ((fd != null) &&  (fd != FileDescriptor.in)) {
             /* if fd is shared, the references in FileDescriptor
