@@ -337,8 +337,7 @@ class BufferedInputStream extends FilterInputStream {
      * @see        java.io.FilterInputStream#in
      */
     // 从输入流中读取下一个字节的数据，以|0~255|范围内的|int|值形式返回。如果已到达流末尾而没有
-    // 可用字节，则返回值|-1|。此方法不会阻塞
-    // 注：不使用类型|byte|，其的范围是|-128~127|不能覆盖|ASCII|码表
+    // 可用字节，则返回值|-1|。此方法可能会阻塞
     public synchronized int read() throws IOException {
         if (pos >= count) {
             fill();
@@ -547,8 +546,8 @@ class BufferedInputStream extends FilterInputStream {
      *                      the mark position becomes invalid.
      * @see     java.io.BufferedInputStream#reset()
      */
-    // 将当前读取索引设置"标记"索引，已待后续的回退操作。参数|readlimit|是允许的最大回退（预读）字节
-    // 长度的限制。即，缓冲区中最多存储已读的数据不能超过|marklimit|字节
+    // 将当前读取索引设置"标记"索引，已待后续的回退操作。参数|readlimit|是允许的最大回退（预读）字
+    // 节长度的限制。即，缓冲区中最多存储已读的数据不能超过|marklimit|字节
     public synchronized void mark(int readlimit) {
         marklimit = readlimit;
         markpos = pos;

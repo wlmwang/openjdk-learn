@@ -39,8 +39,10 @@ import java.util.Arrays;
  * @author      Herb Jellinek
  * @since       JDK1.1
  */
-// 字符数组输出流（写入）。是一个字符流、节点流。字符数组由外部传入。  线程安全
+// 字符数组输出流（写入）。是一个字符流、节点流。字符数组的内存会自动扩容。  线程安全
 // 注：算法、接口与|ByteArrayOutputStream|基本相同，区别是本类用于处理|char|类型数据
+// 特别：当前类和字节流中的|write(char)|接口是有区别的！前者不存在大端序逻辑，而后者有。因为字
+// 符类型此时被当作了单个实体；而在字节流中，字符则会被看作多字节，就有了字节序处理
 public
 class CharArrayWriter extends Writer {
     /**
@@ -80,6 +82,7 @@ class CharArrayWriter extends Writer {
     /**
      * Writes a character to the buffer.
      */
+    // 将指定的字符写入输出流。要写入的字符是参数|c|的低|16|位，|c|的高|16|位被忽略
     public void write(int c) {
         synchronized (lock) {
             int newcount = count + 1;

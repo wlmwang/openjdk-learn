@@ -172,6 +172,7 @@ import java.util.Spliterator;
  * @since 1.4
  */
 
+// 缓冲区是|NIO|框架的基础组件之一
 public abstract class Buffer {
 
     /**
@@ -182,18 +183,30 @@ public abstract class Buffer {
         Spliterator.SIZED | Spliterator.SUBSIZED | Spliterator.ORDERED;
 
     // Invariants: mark <= position <= limit <= capacity
+    // 最后一个调用标记方法|mark()|时|position|字段的值。它不会超过|position|
+    // 注：可以通过|mark()|在缓冲区的一个位置进行标记，再使用|reset()|重置到该偏移位置。支撑预读
     private int mark = -1;
+
+    // 要从缓冲区的字节数组读取/写入的下一个字节的索引。是一个非负值，且不会超过|limit|
+    // 注：|hb[position]|是下一个读取的字节
     private int position = 0;
+
+    // 缓冲区能够使用的内存的最大限制。是一个非负值，且不会超过|capacity|
     private int limit;
+
+    // 缓冲区内存的容量
     private int capacity;
 
     // Used only by direct buffers
     // NOTE: hoisted here for speed in JNI GetDirectBufferAddress
+    // 堆外内存的可用的起始地址。该地址值是一个|native pointer|
+    // 注：它是一个在|malloc()/mmap()|返回地址上，对齐了页大小的整型地址值
     long address;
 
     // Creates a new buffer with the given mark, position, limit, and capacity,
     // after checking invariants.
     //
+    // 初始化缓冲区的四个核心属性：预读索引、起始索引、缓冲区的最大可用索引、以及缓冲区的容量
     Buffer(int mark, int pos, int lim, int cap) {       // package-private
         if (cap < 0)
             throw new IllegalArgumentException("Negative capacity: " + cap);
@@ -387,6 +400,7 @@ public abstract class Buffer {
      *
      * @return  The number of elements remaining in this buffer
      */
+    // 若当前为写入缓冲区，则返回剩余可写内存长度；若当前为读取缓冲区，则返回可读数据长度
     public final int remaining() {
         return limit - position;
     }

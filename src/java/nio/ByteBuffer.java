@@ -259,6 +259,8 @@ package java.nio;
  * @since 1.4
  */
 
+// 字节型（通用的）缓冲区的基类。对外提供字节、字符、短整型、整型、浮点型等等读写接口
+// 注：系统还提供了|CharBuffer,ShortBuffer...|等等不同类型的缓冲区实现，它们对外仅开放相应类型的操作接口
 public abstract class ByteBuffer
     extends Buffer
     implements Comparable<ByteBuffer>
@@ -268,16 +270,20 @@ public abstract class ByteBuffer
     // reduce the number of virtual method invocations needed to access these
     // values, which is especially costly when coding small buffers.
     //
+    // 缓冲区底层使用的字节数组
     final byte[] hb;                  // Non-null only for heap buffers
+    // 缓冲区字节数组的可用的起始偏移量
     final int offset;
     boolean isReadOnly;                 // Valid only for heap buffers
 
     // Creates a new buffer with the given mark, position, limit, capacity,
     // backing array, and array offset
     //
+    // 基于指定的字节数组、以及相关偏移量，创建一个缓冲区对象
     ByteBuffer(int mark, int pos, int lim, int cap,   // package-private
                  byte[] hb, int offset)
     {
+        // 初始化缓冲区的四个核心属性：预读索引、起始索引、缓冲区的最大可用索引、以及缓冲区的容量
         super(mark, pos, lim, cap);
         this.hb = hb;
         this.offset = offset;
@@ -307,6 +313,7 @@ public abstract class ByteBuffer
      * @throws  IllegalArgumentException
      *          If the <tt>capacity</tt> is a negative integer
      */
+    // 在堆外内存上分配一个指定容量内存，并基于此构建一个缓冲区对象
     public static ByteBuffer allocateDirect(int capacity) {
         return new DirectByteBuffer(capacity);
     }
@@ -329,6 +336,7 @@ public abstract class ByteBuffer
      * @throws  IllegalArgumentException
      *          If the <tt>capacity</tt> is a negative integer
      */
+    // 在堆上内存上分配一个指定容量内存，并基于此构建一个缓冲区对象
     public static ByteBuffer allocate(int capacity) {
         if (capacity < 0)
             throw new IllegalArgumentException();

@@ -163,7 +163,6 @@ public class ByteArrayOutputStream extends OutputStream {
      * @param   b   the byte to be written.
      */
     // 将指定的字节写入输出流。要写入的字节是参数|b|的低|8|位，|b|的高|24|位被忽略。此方法不会阻塞
-    // 注：不使用类型|byte|，其的范围是|-128~127|不能覆盖|ASCII|码表
     public synchronized void write(int b) {
         // 必要时，扩容内存
         ensureCapacity(count + 1);
@@ -179,8 +178,7 @@ public class ByteArrayOutputStream extends OutputStream {
      * @param   off   the start offset in the data.
      * @param   len   the number of bytes to write.
      */
-    // 将字节数组|b[off:off+len]|写入到输出流中。如果|len|不为零，则该方法将阻塞，直到输出可用；如果|len|为
-    // 零，方法将立即返回
+    // 将字节数组|b[off:off+len]|写入到输出流中。此方法不会阻塞
     // 注：内部会自动进行数组|b|是否越界校验，即，方法可能会抛出|IndexOutOfBoundsException|
     public synchronized void write(byte b[], int off, int len) {
         // 越界校验

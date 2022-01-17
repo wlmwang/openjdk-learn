@@ -63,7 +63,7 @@ public abstract class OutputStream implements Closeable, Flushable {
      */
     // 将指定的字节写入输出流。要写入的字节是参数|b|的低|8|位，|b|的高|24|位被忽略。如果发
     // 生|I/O|错误，特别是，如果输出流已关闭，则可能会抛出|IOException|
-    // 注：不使用类型|byte|，其的范围是|-128~127|不能覆盖|ASCII|码表
+    // 注：不使用类型|byte|，其范围是|-128~127|不能覆盖|ASCII|码表
     public abstract void write(int b) throws IOException;
 
     /**

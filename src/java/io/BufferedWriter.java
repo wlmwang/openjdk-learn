@@ -65,6 +65,8 @@ package java.io;
 
 // 带缓冲区的输出流（写入）。是一个字符流、处理流。主要用于装饰底层流来增加缓存特性。  线程安全
 // 注：算法、接口与|BufferedOutputStream|基本相同，区别是本类用于处理|char|类型数据
+// 特别：当前类和字节流中的|write(char)|接口是有区别的！前者不存在大端序逻辑，而后者有。因为字
+// 符类型此时被当作了单个实体；而在字节流中，字符则会被看作多字节，就有了字节序处理
 public class BufferedWriter extends Writer {
 
     private Writer out;
@@ -139,6 +141,7 @@ public class BufferedWriter extends Writer {
      *
      * @exception  IOException  If an I/O error occurs
      */
+    // 将指定的字符写入输出流。要写入的字符是参数|c|的低|16|位，|c|的高|16|位被忽略
     public void write(int c) throws IOException {
         synchronized (lock) {
             ensureOpen();

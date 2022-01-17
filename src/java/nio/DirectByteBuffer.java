@@ -34,6 +34,15 @@ import sun.misc.VM;
 import sun.nio.ch.DirectBuffer;
 
 
+// 堆外内存的缓冲区。即，直接使用堆外内存存储数据，是|NIO|高性能的核心设计之一
+// 注：堆外内存可用|malloc/mmap|分配，它们可直接作为系统|I/O|函数的参数，减少了内存间的拷贝
+// 使用|malloc|分配的内存，可避免|JVM|与|Native（用户态）|间的内存拷贝；使用|mmap|分配的
+// 内存，还可以避免|Native（用户态）|与|Native（内核态）|间的内存拷贝，即，零拷贝（|DMA|是
+// 无法优化掉的。即，磁盘与主存间的拷贝依然需要）
+// 亮点：基于虚引用，使用|Cleaner|机制，进行堆外内存的回收工作
+//
+// |-XX:+PageAlignDirectMemory|指定申请的内存是否需要按页对齐。默认不对其
+// |-XX:MaxDirectMemorySize=<size>|指定申请的最大堆外内存大小。默认与|-Xmx|相等
 class DirectByteBuffer
 
     extends MappedByteBuffer
@@ -46,12 +55,16 @@ class DirectByteBuffer
 
 
     // Cached unsafe-access object
+    // 缓存|unsafe-access|对象
     protected static final Unsafe unsafe = Bits.unsafe();
 
     // Cached array base offset
+    // 字节数组的基础偏移量
     private static final long arrayBaseOffset = (long)unsafe.arrayBaseOffset(byte[].class);
 
     // Cached unaligned-access capability
+    // 是否需要内存对齐访问
+    // 注：以下架构需要对齐：|arch.equals("x86") || arch.equals("amd64") || arch.equals("x86_64")|
     protected static final boolean unaligned = Bits.unaligned();
 
     // Base address, used in all indexing calculations
@@ -68,7 +81,11 @@ class DirectByteBuffer
     }
 
 
-
+    // 基于虚引用，使用|Cleaner|机制，进行堆外内存的回收工作
+    // 注：当堆上的|DirectByteBuffer|对象被回收时，将触发|Deallocator.run()|执行，以释放堆外内存
+    // 注：相同机制|finalize()|被官方"嫌弃"；替代方案为虚引用，用于处理对象被回收时的善后工作
+    // 原理：当虚引用对象所引用的对象被回收时，其会被加入到相关引用队列中（此处为|Cleaner.dummyQueue|），
+    // 后台线程|ReferenceHandler.run|在检查到该对象时，调用|Cleaner.clean -> Deallocator.run|
     private static class Deallocator
         implements Runnable
     {
@@ -91,8 +108,10 @@ class DirectByteBuffer
                 // Paranoia
                 return;
             }
+            // 调用|freeMemory|方法进行堆外内存的释放
             unsafe.freeMemory(address);
             address = 0;
+            // 同时"释放"预留的堆外内存统计变量计数器
             Bits.unreserveMemory(size, capacity);
         }
 
@@ -116,26 +135,53 @@ class DirectByteBuffer
     //
     DirectByteBuffer(int cap) {                   // package-private
 
+        // 初始化缓冲区的四个核心属性：预读索引、起始索引、缓冲区的最大可用索引、以及缓冲区的容量
         super(-1, 0, cap, cap);
+
+        // 判断是否需要页面对齐。默认为|false|，不对齐
+        // 注：可通过参数|-XX:+PageAlignDirectMemory|控制
         boolean pa = VM.isDirectMemoryPageAligned();
+
+        // 获取操作系统页大小。典型值为|4k|
         int ps = Bits.pageSize();
+
+        // 计算分配堆外内存的容量
+        // 注：页面对齐配置下，申请的堆外内存为|cap+ps|。这为了使后续计算对齐后的首地址到末尾内
+        // 存不小于|cap|做准备，即，可用内存不小于用户指定的|cap|容量
         long size = Math.max(1L, (long)cap + (pa ? ps : 0));
+
+        // 更新堆外内存使用详情的统计计数器。当内存不足时，会抛出|OOM|
+        // 注：堆外不足时，会尝试调用|System.gc()|后再次申请，如果还是不足，会抛出|OOM|异常
+        // 注：默认情况下，可以申请的最大|DirectByteBuffer|内存为|Java|堆的最大限制
         Bits.reserveMemory(size, cap);
 
         long base = 0;
         try {
+            // 调用|allocateMemory()|方法进行堆外内存的实际分配，返回|native pointer|
+            // 注：底层调用|os::malloc()|，即调用|C/C++|标准库|malloc()|函数
             base = unsafe.allocateMemory(size);
         } catch (OutOfMemoryError x) {
+            // 如果内存分配失败，则释放指定大小的堆外内存统计的计数器
             Bits.unreserveMemory(size, cap);
             throw x;
         }
+        // 初始化申请的内存空间为|0|
         unsafe.setMemory(base, size, (byte) 0);
+
+        // 设置堆外内存的可用的起始地址
+        // 注：主要为了页对齐的特性。即，申请的内存，只取页对齐部分作为缓冲区的可用内存
         if (pa && (base % ps != 0)) {
             // Round up to page boundary
+            // 从|base|开始，计算第一个符合页对齐的地址
+            // 注：表达式|(base & (ps-1))|的值为|base|在页对齐后，剩余字节。快速取余表达式
             address = base + ps - (base & (ps - 1));
         } else {
             address = base;
         }
+
+        // 使用|Cleaner|机制，注册堆外内存的回收处理函数
+        // 注：当堆上的|this|对象被回收时，将触发|Deallocator.run()|执行，用于释放申请的堆外内存
+        // 注：相同机制|finalize()|被官方"嫌弃"；替代方案为虚引用，用于处理对象被回收时的善后工作
         cleaner = Cleaner.create(this, new Deallocator(base, size, cap));
         att = null;
 

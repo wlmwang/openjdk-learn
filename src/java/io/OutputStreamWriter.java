@@ -75,6 +75,13 @@ import sun.nio.cs.StreamEncoder;
  */
 
 // 装饰一个字节输入流，使其对外提供可指定具体编码方案的字符输入接口
+//
+// 1.在|JVM|中，字符都是以|unicode|形式表示。即，直接使用它们在字符集中的编号。只有当需要从|JVM|内部
+// 移动到外部时，比如保存为文件、输出到终端、传送至远程，才需要使用具体的编码方案
+// 2.原理：输入时，将文件字节流按指定编码进行解码成字符串读入到|JVM|中；输入时，将|JVM|字符串按指定编码
+// 进行编码成字节流写入到文件中。所以|InputStreamReader/OutputStreamReader|都需要指定编码
+// 3.注意：在|JVM|中，字符的|unicode|是按字符（双字节）进行|UTF-16 BE|编码的。这就导致它和通常按字节
+// 编码|UTF-16 BE|的字符，必然是不同！
 public class OutputStreamWriter extends Writer {
 
     private final StreamEncoder se;
@@ -191,6 +198,8 @@ public class OutputStreamWriter extends Writer {
      *
      * @exception  IOException  If an I/O error occurs
      */
+    // 将指定的字符写入输出流。要写入的字符是参数|c|的低|16|位，|c|的高|16|位被忽略。如果发
+    // 生|I/O|错误，特别是，如果输出流已关闭，则可能会抛出|IOException|
     public void write(int c) throws IOException {
         se.write(c);
     }

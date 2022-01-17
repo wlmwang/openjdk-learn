@@ -102,7 +102,6 @@ class BufferedOutputStream extends FilterOutputStream {
      */
     // 将指定的字节写入输出流。要写入的字节是参数|b|的低|8|位，|b|的高|24|位被忽略。此方法可能会阻塞
     // 注：缓冲区已满时，会自动将缓冲区数据刷新、写入到底层流中
-    // 注：不使用类型|byte|，其的范围是|-128~127|不能覆盖|ASCII|码表
     public synchronized void write(int b) throws IOException {
         if (count >= buf.length) {
             flushBuffer();

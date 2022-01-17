@@ -234,8 +234,6 @@ class FileInputStream extends InputStream
      */
     // 从输入流中读取下一个字节的数据，以|0~255|范围内的|int|值形式返回。如果已到达流末尾而没有
     // 可用字节，则返回值|-1|。此方法会阻塞，直到输入数据可用、检测到流结束（关闭）或抛出异常为止
-    // 注：不使用类型|byte|，其的范围是|-128~127|不能覆盖|ASCII|码表
-    // 注：一个有效的单字节数据被转换成整型后不可能为|-1|，除非|read()|方法主动返回|-1|
     public int read() throws IOException {
         return read0();
     }
@@ -429,6 +427,8 @@ class FileInputStream extends InputStream
      * @since 1.4
      * @spec JSR-51
      */
+    // 获取一个通道，使客户端能够用通道的方式操作当前的文件
+    // 注：开发此接口，主要是为了将文件的读写也融入|NIO|体系
     public FileChannel getChannel() {
         synchronized (this) {
             if (channel == null) {

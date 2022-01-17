@@ -83,6 +83,7 @@ class Bits {                            // package-private
                         _get(a + 1));
     }
 
+    // 已指定字节序|bigEndian|，从缓冲区|bb|的指定索引|bi|，读取一个字符
     static char getChar(ByteBuffer bb, int bi, boolean bigEndian) {
         return bigEndian ? getCharB(bb, bi) : getCharL(bb, bi);
     }
@@ -114,6 +115,7 @@ class Bits {                            // package-private
         _put(a + 1, char0(x));
     }
 
+    // 已指定字节序|bigEndian|，在缓冲区|bb|的指定索引|bi|，写入字符|x|
     static void putChar(ByteBuffer bb, int bi, char x, boolean bigEndian) {
         if (bigEndian)
             putCharB(bb, bi, x);
@@ -620,17 +622,37 @@ class Bits {                            // package-private
     // A user-settable upper limit on the maximum amount of allocatable
     // direct buffer memory.  This value may be changed during VM
     // initialization if it is launched with "-XX:MaxDirectMemorySize=<size>".
+    //
+    // 启动参数|-XX:MaxDirectMemorySize|限制的是用户申请堆外内存的上限，而不考虑对齐情况
+    // |maxMemory|是堆外内存的上限
+    // |reservedMemory|是堆外内存目前真实的已使用大小（包含页对齐的填充部分）
+    // |totalCapacity|是用户实际申请的空间
     private static volatile long maxMemory = VM.maxDirectMemory();
     private static volatile long reservedMemory;
     private static volatile long totalCapacity;
+
+    // 堆外内存分配次数
     private static volatile long count;
+
+    // 堆外内存最大限制是否已初始化标志位
     private static boolean memoryLimitSet = false;
 
     // These methods should be called whenever direct memory is allocated or
     // freed.  They allow the user to control the amount of direct memory
     // which a process may access.  All sizes are specified in bytes.
+    //
+    // 更新堆外内存使用详情的统计计数器。如果还有足够内存，则更新对应的变量；如果已经没有内
+    // 存，则抛出|OOM|。默认值为|Runtime.getRuntime().maxMemory()|，而这个值等于可
+    // 用的|Java|堆最大大小，也就是我们|-Xmx|参数指定的值。也就是说，默认情况下，可以申请
+    // 的最大|DirectByteBuffer|内存为|Java|堆最大限制值
+    // 注：当堆外不足时，尝试调用|System.gc()|后再次申请，如果还是不足，会抛出|OOM|异常
+    // |size|是堆外内存目前真实的已使用大小（包含页对齐的填充部分），|cap|用户实际申请的空间
     static void reserveMemory(long size, int cap) {
+        // 因为涉及到更新多个静态统计变量，需要|Bits|类的锁
         synchronized (Bits.class) {
+            // 获取最大可以申请的堆外内存大小
+            // 注：可以通过参数|-XX:MaxDirectMemorySize=<size>|设置
+            // 注：
             if (!memoryLimitSet && VM.isBooted()) {
                 maxMemory = VM.maxDirectMemory();
                 memoryLimitSet = true;
@@ -638,14 +660,16 @@ class Bits {                            // package-private
             // -XX:MaxDirectMemorySize limits the total capacity rather than the
             // actual memory usage, which will differ when buffers are page
             // aligned.
-            if (cap <= maxMemory - totalCapacity) {
+            // 启动参数|-XX:MaxDirectMemorySize|限制的是用户申请堆外内存的上限，而不考虑对齐情况
+            if (cap <= maxMemory - totalCapacity) { // 如果空间足够，更新统计变量后直接返回
                 reservedMemory += size;
                 totalCapacity += cap;
-                count++;
+                count++;    // 递增堆外内存分配次数
                 return;
             }
         }
 
+        // 如果已经没有足够内存，则先尝试|GC|释放内存
         System.gc();
         try {
             Thread.sleep(100);
@@ -653,6 +677,7 @@ class Bits {                            // package-private
             // Restore interrupt status
             Thread.currentThread().interrupt();
         }
+        // 再次判断堆外内存，如果还是没有足够空间，则抛出|OOM|异常
         synchronized (Bits.class) {
             if (totalCapacity + cap > maxMemory)
                 throw new OutOfMemoryError("Direct buffer memory");
@@ -663,6 +688,8 @@ class Bits {                            // package-private
 
     }
 
+    // 释放指定大小的堆外内存统计的计数器
+    // |size|是堆外内存目前真实的已使用大小（包含页对齐的填充部分），|cap|用户实际申请的空间
     static synchronized void unreserveMemory(long size, int cap) {
         if (reservedMemory > 0) {
             reservedMemory -= size;

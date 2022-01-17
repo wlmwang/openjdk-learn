@@ -116,6 +116,10 @@ public abstract class Reader implements Readable, Closeable {
      *
      * @exception  IOException  If an I/O error occurs
      */
+    // 从输入流中读取下一个字符的数据，以|0~65535|范围内的|int|值形式返回。如果已到达流末尾而没有
+    // 可用字节，则返回值|-1|。此方法会阻塞，直到输入数据可用、检测到流结束（关闭）或抛出异常为止
+    // 注：不使用类型|char|，其范围是|0~65535|不能覆盖|Unicode|码表，并且也没有|-1|
+    // 注：一个有效的单字符数据被转换成整型后不可能为|-1|，除非|read()|方法主动返回|-1|
     public int read() throws IOException {
         char cb[] = new char[1];
         if (read(cb, 0, 1) == -1)

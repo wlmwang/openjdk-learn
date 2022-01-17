@@ -104,6 +104,9 @@ public abstract class Writer implements Appendable, Closeable, Flushable {
      * @throws  IOException
      *          If an I/O error occurs
      */
+    // 将指定的字符写入输出流。要写入的字符是参数|c|的低|16|位，|c|的高|16|位被忽略。如果发
+    // 生|I/O|错误，特别是，如果输出流已关闭，则可能会抛出|IOException|
+    // 注：不使用类型|char|，其范围是|0~65535|不能覆盖|Unicode|码表，并且也没有|-1|
     public void write(int c) throws IOException {
         synchronized (lock) {
             if (writeBuffer == null){
@@ -142,6 +145,10 @@ public abstract class Writer implements Appendable, Closeable, Flushable {
      * @throws  IOException
      *          If an I/O error occurs
      */
+    // 将字符数组|cbuf[off:off+len]|写入到输出流中。如果|len|不为零，则该方法可能将阻塞，直到输出可
+    // 用；如果|len|为零，方法将立即返回
+    // 注：如果写出的是|JVM|之外的设备，比如文件、终端等等，则需要对字符进行具体编码方案的处理
+    // 注：底层会自动进行数组|b|是否越界校验，即，方法可能会抛出|IndexOutOfBoundsException|
     abstract public void write(char cbuf[], int off, int len) throws IOException;
 
     /**
@@ -153,6 +160,9 @@ public abstract class Writer implements Appendable, Closeable, Flushable {
      * @throws  IOException
      *          If an I/O error occurs
      */
+    // 将字符串|str|写入到输出流中。如果|str|不为空，则该方法可能将阻塞，直到输出可用；如果|str|为空，
+    // 方法将立即返回
+    // 注：如果写出的是|JVM|之外的设备，比如文件、终端等等，则需要对字符进行具体编码方案的处理
     public void write(String str) throws IOException {
         write(str, 0, str.length());
     }

@@ -39,6 +39,8 @@ package java.nio;
 
  */
 
+// 堆上内存的缓冲区。即，使用堆上的字节数组存储数据
+// 注：相比于|DirectByteBuffer|缓冲区，堆上内存缓冲区需要|JVM|与|Native（用户态）|间的内存拷贝
 class HeapByteBuffer
     extends ByteBuffer
 {
@@ -52,6 +54,7 @@ class HeapByteBuffer
 
     */
 
+    // 在堆上创建一个指定容量的字节数组，并基于此，创建一个缓冲区对象
     HeapByteBuffer(int cap, int lim) {            // package-private
 
         super(-1, 0, lim, cap, new byte[cap], 0);
@@ -65,6 +68,7 @@ class HeapByteBuffer
 
     }
 
+    // 基于一个字节数组、偏移量、长度，创建一个缓冲区对象
     HeapByteBuffer(byte[] buf, int off, int len) { // package-private
 
         super(-1, off, off + len, buf.length, buf, 0);
@@ -94,6 +98,9 @@ class HeapByteBuffer
 
     }
 
+    // 基于当前缓冲区的当前位置、容量和限制，创建一个新的字节缓冲区
+    // 注：对原始缓冲区内容的更改将在新缓冲区中可见，反之亦然。它们共享了底层的缓冲区内存（新的缓冲
+    // 区仅使用原始内存的其中一个子序列）；不过，这两个缓冲区的位置，限制和标记值是独立的
     public ByteBuffer slice() {
         return new HeapByteBuffer(hb,
                                         -1,
@@ -103,6 +110,9 @@ class HeapByteBuffer
                                         this.position() + offset);
     }
 
+    // 基于当前缓冲区的当前位置、限制、标记、容量和限制，创建一个新的字节缓冲区
+    // 注：对原始缓冲区内容的更改将在新缓冲区中可见，反之亦然。它们共享了底层的缓冲区内存（新的缓冲
+    // 区使用原始内存的全部序列）；不过，这两个缓冲区的位置，限制和标记值是独立的
     public ByteBuffer duplicate() {
         return new HeapByteBuffer(hb,
                                         this.markValue(),
@@ -112,6 +122,9 @@ class HeapByteBuffer
                                         offset);
     }
 
+    // 基于当前缓冲区的当前位置、限制、标记、容量和限制，创建一个新的、只读的、字节缓冲区
+    // 注：对原始缓冲区内容的更改将在新缓冲区中可见，但新的缓冲区只读。它们共享了底层的缓冲区内存（新
+    // 的缓冲区使用原始内存的全部序列）；不过，这两个缓冲区的位置，限制和标记值是独立的
     public ByteBuffer asReadOnlyBuffer() {
 
         return new HeapByteBufferR(hb,
@@ -158,8 +171,7 @@ class HeapByteBuffer
         return false;
     }
 
-
-
+    // 可读写
     public boolean isReadOnly() {
         return false;
     }
@@ -182,41 +194,21 @@ class HeapByteBuffer
 
     }
 
+    // 将字节数组|src[offset:offset+length]|拷贝到当前缓冲区中。如果|length|为零，方法将立即返回
+    // 注：内部会自动进行数组|src|是否越界校验，即，方法可能会抛出|IndexOutOfBoundsException|
     public ByteBuffer put(byte[] src, int offset, int length) {
 
         checkBounds(offset, length, src.length);
+
+        // 写入数据超过缓冲区剩余内存，立即抛出缓冲区溢出异常
         if (length > remaining())
             throw new BufferOverflowException();
+
+        // 按字节拷贝|src[offset:offset+length]|数组至|hb|中可用内存中
         System.arraycopy(src, offset, hb, ix(position()), length);
+
+        // 当前偏移量向前推进|n|长度，表示写入了|n|字节数据
         position(position() + length);
-        return this;
-
-
-
-    }
-
-    public ByteBuffer put(ByteBuffer src) {
-
-        if (src instanceof HeapByteBuffer) {
-            if (src == this)
-                throw new IllegalArgumentException();
-            HeapByteBuffer sb = (HeapByteBuffer)src;
-            int n = sb.remaining();
-            if (n > remaining())
-                throw new BufferOverflowException();
-            System.arraycopy(sb.hb, sb.ix(sb.position()),
-                             hb, ix(position()), n);
-            sb.position(sb.position() + n);
-            position(position() + n);
-        } else if (src.isDirect()) {
-            int n = src.remaining();
-            if (n > remaining())
-                throw new BufferOverflowException();
-            src.get(hb, ix(position()), n);
-            position(position() + n);
-        } else {
-            super.put(src);
-        }
         return this;
 
 
@@ -229,6 +221,53 @@ class HeapByteBuffer
         position(remaining());
         limit(capacity());
         discardMark();
+        return this;
+
+
+
+    }
+
+    // 将源缓冲区|ByteBuffer|数据拷贝到当前缓冲区中。使用场景：将读取的源缓冲区中数据拷贝到写入的
+    // 目标缓冲区中可用内存
+    // 注：如果读取的源缓冲区中数据长度超过了写入的目标缓冲区中可用内存，立即抛出缓冲区溢出异常
+    // 注：源缓冲区中的数据被拷贝到当前缓冲区中，会被视为数据已被消费了
+    public ByteBuffer put(ByteBuffer src) {
+
+        if (src instanceof HeapByteBuffer) {    // 源缓冲区为堆上缓冲区
+            // 源与目标缓冲区不能为同一个
+            if (src == this)
+                throw new IllegalArgumentException();
+
+            HeapByteBuffer sb = (HeapByteBuffer)src;
+            int n = sb.remaining();
+
+            // 如果读取的源缓冲区中数据长度超过了写入的目标缓冲区中可用内存，立即抛出缓冲区溢出异常
+            if (n > remaining())
+                throw new BufferOverflowException();
+
+            // 按字节拷贝|src[offset:offset+length]|数组至|hb|中可用内存中
+            System.arraycopy(sb.hb, sb.ix(sb.position()),
+                    hb, ix(position()), n);
+
+            // 源读取缓冲向前推进|n|长度，表示读取了|n|字节数据
+            sb.position(sb.position() + n);
+
+            // 当前偏移量向前推进|n|长度，表示写入了|n|字节数据
+            position(position() + n);
+        } else if (src.isDirect()) {    // 源缓冲区为堆外缓冲区
+            int n = src.remaining();
+
+            // 如果读取的源缓冲区中数据长度超过了写入的目标缓冲区中可用内存，立即抛出缓冲区溢出异常
+            if (n > remaining())
+                throw new BufferOverflowException();
+
+            // 将源缓冲区中数据按字节拷贝数组至|hb|中可用内存中
+            src.get(hb, ix(position()), n);
+            position(position() + n);
+        } else {
+            // 循环遍历，逐个字节调用|put(byte)|拷贝数据
+            super.put(src);
+        }
         return this;
 
 
@@ -254,17 +293,19 @@ class HeapByteBuffer
     // char
 
 
-
+    // 以大端序，从当前缓冲区的当前位置，读取单个字符
     public char getChar() {
         return Bits.getChar(this, ix(nextGetIndex(2)), bigEndian);
     }
 
+    // 以大端序，从当前缓冲区的指定位置|i|，读取单个字符
     public char getChar(int i) {
         return Bits.getChar(this, ix(checkIndex(i, 2)), bigEndian);
     }
 
 
 
+    // 以大端序，在当前缓冲区的当前位置，写入字符|x|
     public ByteBuffer putChar(char x) {
 
         Bits.putChar(this, ix(nextPutIndex(2)), x, bigEndian);
@@ -274,6 +315,7 @@ class HeapByteBuffer
 
     }
 
+    // 以大端序，在当前缓冲区的指定位置|i|，写入字符|x|
     public ByteBuffer putChar(int i, char x) {
 
         Bits.putChar(this, ix(checkIndex(i, 2)), x, bigEndian);
@@ -283,6 +325,8 @@ class HeapByteBuffer
 
     }
 
+    // 将当前字节型缓冲区装饰一个指定字节序的字符型缓冲区
+    // 注：对外仅提供字符型的操作接口
     public CharBuffer asCharBuffer() {
         int size = this.remaining() >> 1;
         int off = offset + position();
@@ -305,17 +349,19 @@ class HeapByteBuffer
     // short
 
 
-
+    // 以大端序，从当前缓冲区的当前位置，读取单个|short|
     public short getShort() {
         return Bits.getShort(this, ix(nextGetIndex(2)), bigEndian);
     }
 
+    // 以大端序，从当前缓冲区的指定位置|i|，读取单个|short|
     public short getShort(int i) {
         return Bits.getShort(this, ix(checkIndex(i, 2)), bigEndian);
     }
 
 
 
+    // 以大端序，在当前缓冲区的当前位置，写入单个|short|
     public ByteBuffer putShort(short x) {
 
         Bits.putShort(this, ix(nextPutIndex(2)), x, bigEndian);
@@ -325,6 +371,7 @@ class HeapByteBuffer
 
     }
 
+    // 以大端序，在当前缓冲区的指定位置|i|，写入单个|short|
     public ByteBuffer putShort(int i, short x) {
 
         Bits.putShort(this, ix(checkIndex(i, 2)), x, bigEndian);
@@ -334,6 +381,8 @@ class HeapByteBuffer
 
     }
 
+    // 将当前字节型缓冲区装饰一个指定字节序的短整型缓冲区
+    // 注：对外仅提供短整型的操作接口
     public ShortBuffer asShortBuffer() {
         int size = this.remaining() >> 1;
         int off = offset + position();

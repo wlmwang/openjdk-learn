@@ -344,8 +344,8 @@ class DataOutputStream extends FilterOutputStream implements DataOutput {
      * @param      str   a string to be written.
      * @exception  IOException  if an I/O error occurs.
      */
-    // 将|unicode|字符串转换成修改版的|utf-8|字符串，写出到指定的输出流中。修改版|utf-8|字符串是
-    // 指在|utf-8|字符串头部增加两个字节存储长度的字符串。编码为：|length + utf-8|
+    // 将|unicode|字符串转换成修改版的|utf-8|字符串，写出到指定的输出流中。修改版|utf-8|字符串
+    // 是指在|utf-8|字符串头部增加两个字节存储长度的字符串。编码为：|length + utf-8|
     public final void writeUTF(String str) throws IOException {
         writeUTF(str, this);
     }
@@ -370,8 +370,8 @@ class DataOutputStream extends FilterOutputStream implements DataOutput {
      * @return     The number of bytes written out.
      * @exception  IOException  if an I/O error occurs.
      */
-    // 将|unicode|字符串转化成修改版的|utf-8|字符串，写出到指定的输出流中。修改版|utf-8|字符串是
-    // 指在|utf-8|字符串头部增加两个字节存储长度的字符串。编码为：|length + utf-8|
+    // 将|unicode|字符串转化成修改版的|utf-8|字符串，写出到指定的输出流中。修改版|utf-8|字符串
+    // 是指在|utf-8|字符串头部增加两个字节存储长度的字符串。编码为：|length + utf-8|
     // 注：将平台无关的|unicode|字符转换成一个具体的|unicode|编码格式（修改版的|utf-8|）
     // 注：修改版|utf-8|可以将多个|utf-8|字符串整合成一个|utf-8|字符串
     static int writeUTF(String str, DataOutput out) throws IOException {

@@ -69,6 +69,8 @@ import java.util.stream.StreamSupport;
 
 // 带缓冲区的输入流（读取）。是一个字符流、处理流。主要用于装饰底层流来增加缓存特性。  线程安全
 // 注：算法、接口与|BufferedInputStream|基本相同，区别是本类用于处理|char|类型数据
+// 特别：当前类和字节流中的|read()|接口是有区别的！前者不存在大端序逻辑，而后者有。因为字
+// 符类型此时被当作了单个实体；而在字节流中，字符则会被看作多字节，就有了字节序处理
 public class BufferedReader extends Reader {
 
     private Reader in;
@@ -195,6 +197,8 @@ public class BufferedReader extends Reader {
      *         end of the stream has been reached
      * @exception  IOException  If an I/O error occurs
      */
+    // 从输入流中读取下一个字符的数据，以|0~65535|范围内的|int|值形式返回。如果已到达流末尾而没有
+    // 可用字符，则返回值|-1|。此方法可能会阻塞
     public int read() throws IOException {
         synchronized (lock) {
             ensureOpen();

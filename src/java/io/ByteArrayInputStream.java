@@ -163,7 +163,6 @@ class ByteArrayInputStream extends InputStream {
      */
     // 从输入流中读取下一个字节的数据，以|0~255|范围内的|int|值形式返回。如果已到达流末尾而没有
     // 可用字节，则返回值|-1|。此方法不会阻塞
-    // 注：不使用类型|byte|，其的范围是|-128~127|不能覆盖|ASCII|码表
     public synchronized int read() {
         return (pos < count) ? (buf[pos++] & 0xff) : -1;
     }
