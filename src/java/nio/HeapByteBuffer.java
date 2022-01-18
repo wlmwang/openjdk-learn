@@ -39,7 +39,7 @@ package java.nio;
 
  */
 
-// 堆上内存的缓冲区。即，使用堆上的字节数组存储数据
+// 堆上内存的缓冲区。即，使用堆上的字节数组读写数据
 // 注：相比于|DirectByteBuffer|缓冲区，堆上内存缓冲区需要|JVM|与|Native（用户态）|间的内存拷贝
 class HeapByteBuffer
     extends ByteBuffer
@@ -68,7 +68,8 @@ class HeapByteBuffer
 
     }
 
-    // 基于一个字节数组、偏移量、长度，创建一个缓冲区对象
+    // 基于一个字节数组、偏移、长度，创建一个堆上的缓冲区对象
+    // 注：缓冲区将由给定的字节数组支持；也就是说，对缓冲区的修改将导致数组被修改，反之亦然
     HeapByteBuffer(byte[] buf, int off, int len) { // package-private
 
         super(-1, off, off + len, buf.length, buf, 0);
@@ -82,6 +83,8 @@ class HeapByteBuffer
 
     }
 
+    // 基于一个字节数组、标记、位置、限制、容量、偏移，创建一个堆上的缓冲区对象
+    // 注：缓冲区将由给定的字节数组支持；也就是说，对缓冲区的修改将导致数组被修改，反之亦然
     protected HeapByteBuffer(byte[] buf,
                                    int mark, int pos, int lim, int cap,
                                    int off)
@@ -167,11 +170,12 @@ class HeapByteBuffer
         return this;
     }
 
+    // 判断此缓冲区是否堆外缓冲区
     public boolean isDirect() {
         return false;
     }
 
-    // 可读写
+    // 判断此缓冲区是否仅可读
     public boolean isReadOnly() {
         return false;
     }
@@ -215,6 +219,10 @@ class HeapByteBuffer
 
     }
 
+    // 压缩此缓冲区（可选操作）。即，将缓冲区的当前|position|和它的|limit|之间的字节复制到缓冲区的
+    // 开头，并将标记丢弃
+    // 注：缓冲区的|position|设置为复制的字节数，而不是零，以便调用此方法后可以立即调用|put()|方法
+    // 注：在缓冲区写入数据后调用此方法，以防写入不完整
     public ByteBuffer compact() {
 
         System.arraycopy(hb, ix(position()), hb, ix(0), remaining());
@@ -227,10 +235,10 @@ class HeapByteBuffer
 
     }
 
-    // 将源缓冲区|ByteBuffer|数据拷贝到当前缓冲区中。使用场景：将读取的源缓冲区中数据拷贝到写入的
-    // 目标缓冲区中可用内存
+    // 将源缓冲区|ByteBuffer|数据拷贝到当前缓冲区中。一般使用场景：将读取的源缓冲区中数据拷贝到写入
+    // 的目标缓冲区中可用内存
     // 注：如果读取的源缓冲区中数据长度超过了写入的目标缓冲区中可用内存，立即抛出缓冲区溢出异常
-    // 注：源缓冲区中的数据被拷贝到当前缓冲区中，会被视为数据已被消费了
+    // 注：当源缓冲区中的数据被拷贝到当前缓冲区中，会被视为数据已被消费，然后清除
     public ByteBuffer put(ByteBuffer src) {
 
         if (src instanceof HeapByteBuffer) {    // 源缓冲区为堆上缓冲区
@@ -325,8 +333,9 @@ class HeapByteBuffer
 
     }
 
-    // 将当前字节型缓冲区装饰一个指定字节序的字符型缓冲区
-    // 注：对外仅提供字符型的操作接口
+    // 将当前字节缓冲区装饰一个默认字节序的字符缓冲区。新缓冲区的内容将从该缓冲区的当前位置开始。
+    // 此缓冲区内容的更改将在新缓冲区中可见，反之亦然；两个缓冲区的位置、限制和标记值将是独立的。
+    // 注：将当前字节缓冲区封装为一个|char|型的视图。即，对外仅提供|char|型的操作接口
     public CharBuffer asCharBuffer() {
         int size = this.remaining() >> 1;
         int off = offset + position();
@@ -381,8 +390,9 @@ class HeapByteBuffer
 
     }
 
-    // 将当前字节型缓冲区装饰一个指定字节序的短整型缓冲区
-    // 注：对外仅提供短整型的操作接口
+    // 将当前字节缓冲区装饰一个默认字节序的字符缓冲区。新缓冲区的内容将从该缓冲区的当前位置开始。
+    // 此缓冲区内容的更改将在新缓冲区中可见，反之亦然；两个缓冲区的位置、限制和标记值将是独立的。
+    // 注：将当前字节缓冲区封装为一个|char|型的视图。即，对外仅提供|char|型的操作接口
     public ShortBuffer asShortBuffer() {
         int size = this.remaining() >> 1;
         int off = offset + position();
@@ -434,6 +444,9 @@ class HeapByteBuffer
 
     }
 
+    // 将当前字节缓冲区装饰一个默认字节序的整型缓冲区。新缓冲区的内容将从该缓冲区的当前位置开始。
+    // 此缓冲区内容的更改将在新缓冲区中可见，反之亦然；两个缓冲区的位置、限制和标记值将是独立的。
+    // 注：将当前字节缓冲区封装为一个|int|型的视图。即，对外仅提供|int|型的操作接口
     public IntBuffer asIntBuffer() {
         int size = this.remaining() >> 2;
         int off = offset + position();
@@ -485,6 +498,9 @@ class HeapByteBuffer
 
     }
 
+    // 将当前字节缓冲区装饰一个默认字节序的长整型缓冲区。新缓冲区的内容将从该缓冲区的当前位置开始。
+    // 此缓冲区内容的更改将在新缓冲区中可见，反之亦然；两个缓冲区的位置、限制和标记值将是独立的。
+    // 注：将当前字节缓冲区封装为一个|long|型的视图。即，对外仅提供|long|型的操作接口
     public LongBuffer asLongBuffer() {
         int size = this.remaining() >> 3;
         int off = offset + position();
@@ -536,6 +552,9 @@ class HeapByteBuffer
 
     }
 
+    // 将当前字节缓冲区装饰一个默认字节序的浮点缓冲区。新缓冲区的内容将从该缓冲区的当前位置开始。
+    // 此缓冲区内容的更改将在新缓冲区中可见，反之亦然；两个缓冲区的位置、限制和标记值将是独立的。
+    // 注：将当前字节缓冲区封装为一个|float|型的视图。即，对外仅提供|float|型的操作接口
     public FloatBuffer asFloatBuffer() {
         int size = this.remaining() >> 2;
         int off = offset + position();
@@ -587,6 +606,9 @@ class HeapByteBuffer
 
     }
 
+    // 将当前字节缓冲区装饰一个默认字节序的双精度缓冲区。新缓冲区的内容将从该缓冲区的当前位置开始。
+    // 此缓冲区内容的更改将在新缓冲区中可见，反之亦然；两个缓冲区的位置、限制和标记值将是独立的。
+    // 注：将当前字节缓冲区封装为一个|double|型的视图。即，对外仅提供|double|型的操作接口
     public DoubleBuffer asDoubleBuffer() {
         int size = this.remaining() >> 3;
         int off = offset + position();

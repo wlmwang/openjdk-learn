@@ -235,6 +235,7 @@ class Thread implements Runnable {
 
     /* Set the blocker field; invoked via sun.misc.SharedSecrets from java.nio code
      */
+    // 设置线程中断的钩子方法。即，当线程中断时，自动执行|blocker.interrupt()|方法
     void blockedOn(Interruptible b) {
         synchronized (blockerLock) {
             blocker = b;
@@ -912,6 +913,7 @@ class Thread implements Runnable {
         if (this != Thread.currentThread())
             checkAccess();
 
+        // 当线程中断时，自动执行|blocker.interrupt()|钩子方法
         synchronized (blockerLock) {
             Interruptible b = blocker;
             if (b != null) {

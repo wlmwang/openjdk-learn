@@ -912,6 +912,14 @@ public abstract class FileChannel
      * @see java.nio.channels.FileChannel.MapMode
      * @see java.nio.MappedByteBuffer
      */
+    // 基于文件通道关联的文件描述符，创建一个基于|mmap()|共享内存的堆外缓冲区。通过以下三种模式将文件映射到内存中：
+    // 1.只读：任何修改结果缓冲区的尝试都将导致抛出|ReadOnlyBufferException|
+    // 2.读/写：对缓冲区所做的更改最终都将传播到文件中。它们可能对映射相同文件的其他程序可见，也可能不可见
+    // 3.私有：对缓冲区所做的更改不会传播到文件中。并且对映射同一文件的其他程序不可见；即，创建缓冲区都是私有副本
+    // 注：对于只读映射，该通道必须以可读方式打开；对于读/写或私有映射，此通道必须以读写方式打开
+    // 注：映射一旦建立，就不再依赖于用于创建它的文件通道，特别是关闭通道对映射的有效性没有影响，反之也是
+    // 注：对于大多数操作系统而言，将文件映射到内存比通过普通读写方法读取或写入几十|KB|数据的成本更高。所以，从性能
+    // 的角度来看，通常只值得将相对较大的文件映射到内存中
     public abstract MappedByteBuffer map(MapMode mode,
                                          long position, long size)
         throws IOException;

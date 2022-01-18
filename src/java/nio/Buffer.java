@@ -297,6 +297,8 @@ public abstract class Buffer {
      *
      * @return  This buffer
      */
+    // 将当前位置设置"标记"索引，已待后续的回退操作
+    // 注：配合|reset()|方法，常用于实现预读特性
     public final Buffer mark() {
         mark = position;
         return this;
@@ -313,6 +315,8 @@ public abstract class Buffer {
      * @throws  InvalidMarkException
      *          If the mark has not been set
      */
+    // 重置操作。即，|hb[mark]|是重置后要作为输入提供的第一个字节
+    // 注：配合|mark()|方法，常用于实现预读特性
     public final Buffer reset() {
         int m = mark;
         if (m < 0)
@@ -338,6 +342,7 @@ public abstract class Buffer {
      *
      * @return  This buffer
      */
+    // 清空缓冲区。即设置|position|为零、|limit|为原始容量、并丢弃|mark|标志位
     public final Buffer clear() {
         position = 0;
         limit = capacity;
@@ -366,6 +371,9 @@ public abstract class Buffer {
      *
      * @return  This buffer
      */
+    // 翻转此缓冲区。将|limit|置为当前的|position|，然后设置|position = 0|，并将|mark|丢弃
+    // 注：通道将数据写入缓冲区后，调用此方法，可使该缓冲区切换至读模式，从而能读取之前写入的数据
+    // 注：主要用于将数据从一个地方传输到另一个地方，此方法通常会与|compact()|方法结合使用
     public final Buffer flip() {
         limit = position;
         position = 0;
@@ -421,6 +429,7 @@ public abstract class Buffer {
      *
      * @return  <tt>true</tt> if, and only if, this buffer is read-only
      */
+    // 判断此缓冲区是否仅可读
     public abstract boolean isReadOnly();
 
     /**
@@ -436,6 +445,7 @@ public abstract class Buffer {
      *
      * @since 1.6
      */
+    // 判断此缓冲区是否由可写的数组支持。若为|true|，则可以安全地调用|array|和|arrayOffset|方法
     public abstract boolean hasArray();
 
     /**

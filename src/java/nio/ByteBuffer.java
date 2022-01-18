@@ -280,6 +280,7 @@ public abstract class ByteBuffer
     // backing array, and array offset
     //
     // 基于指定的字节数组、以及相关偏移量，创建一个缓冲区对象
+    // 注：缓冲区将由给定的字节数组支持；也就是说，对缓冲区的修改将导致数组被修改，反之亦然
     ByteBuffer(int mark, int pos, int lim, int cap,   // package-private
                  byte[] hb, int offset)
     {
@@ -374,6 +375,8 @@ public abstract class ByteBuffer
      *          If the preconditions on the <tt>offset</tt> and <tt>length</tt>
      *          parameters do not hold
      */
+    // 基于一个字节数组、偏移、长度，创建一个堆上的缓冲区对象
+    // 注：缓冲区将由给定的字节数组支持；也就是说，对缓冲区的修改将导致数组被修改，反之亦然
     public static ByteBuffer wrap(byte[] array,
                                     int offset, int length)
     {
@@ -400,6 +403,8 @@ public abstract class ByteBuffer
      *
      * @return  The new byte buffer
      */
+    // 基于一个字节数组，创建一个堆上的缓冲区对象
+    // 注：缓冲区将由给定的字节数组支持；也就是说，对缓冲区的修改将导致数组被修改，反之亦然
     public static ByteBuffer wrap(byte[] array) {
         return wrap(array, 0, array.length);
     }
@@ -514,6 +519,9 @@ public abstract class ByteBuffer
      *
      * @return  The new byte buffer
      */
+    // 基于当前缓冲区的当前位置、容量和限制，创建一个新的字节缓冲区
+    // 注：对原始缓冲区内容的更改将在新缓冲区中可见，反之亦然。它们共享了底层的缓冲区内存（新的缓冲
+    // 区仅使用原始内存的其中一个子序列）；不过，这两个缓冲区的位置，限制和标记值是独立的
     public abstract ByteBuffer slice();
 
     /**
@@ -531,6 +539,9 @@ public abstract class ByteBuffer
      *
      * @return  The new byte buffer
      */
+    // 基于当前缓冲区的当前位置、限制、标记、容量和限制，创建一个新的字节缓冲区
+    // 注：对原始缓冲区内容的更改将在新缓冲区中可见，反之亦然。它们共享了底层的缓冲区内存（新的缓冲
+    // 区使用原始内存的全部序列）；不过，这两个缓冲区的位置，限制和标记值是独立的
     public abstract ByteBuffer duplicate();
 
     /**
@@ -551,6 +562,9 @@ public abstract class ByteBuffer
      *
      * @return  The new, read-only byte buffer
      */
+    // 基于当前缓冲区的当前位置、限制、标记、容量和限制，创建一个新的、只读的、字节缓冲区
+    // 注：对原始缓冲区内容的更改将在新缓冲区中可见，但新的缓冲区只读。它们共享了底层的缓冲区内存（新
+    // 的缓冲区使用原始内存的全部序列）；不过，这两个缓冲区的位置，限制和标记值是独立的
     public abstract ByteBuffer asReadOnlyBuffer();
 
 
@@ -767,6 +781,10 @@ public abstract class ByteBuffer
      * @throws  ReadOnlyBufferException
      *          If this buffer is read-only
      */
+    // 将源缓冲区|ByteBuffer|数据拷贝到当前缓冲区中。一般使用场景：将读取的源缓冲区中数据拷贝到写入
+    // 的目标缓冲区中可用内存
+    // 注：如果读取的源缓冲区中数据长度超过了写入的目标缓冲区中可用内存，立即抛出缓冲区溢出异常
+    // 注：当源缓冲区中的数据被拷贝到当前缓冲区中，会被视为数据已被消费，然后清除
     public ByteBuffer put(ByteBuffer src) {
         if (src == this)
             throw new IllegalArgumentException();
@@ -974,6 +992,7 @@ public abstract class ByteBuffer
      * @return  <tt>true</tt> if, and only if, this buffer
      *          is backed by an array and is not read-only
      */
+    // 判断此缓冲区是否由可写的数组支持。若为|true|，则可以安全地调用|array|和|arrayOffset|方法
     public final boolean hasArray() {
         return (hb != null) && !isReadOnly;
     }
@@ -1073,6 +1092,10 @@ public abstract class ByteBuffer
      * @throws  ReadOnlyBufferException
      *          If this buffer is read-only
      */
+    // 压缩此缓冲区（可选操作）。即，将缓冲区的当前|position|和它的|limit|之间的字节复制到缓冲区的
+    // 开头，并将标记丢弃
+    // 注：缓冲区的|position|设置为复制的字节数，而不是零，以便调用此方法后可以立即调用|put()|方法
+    // 注：在缓冲区写入数据后调用此方法，以防写入不完整
     public abstract ByteBuffer compact();
 
     /**
@@ -1080,6 +1103,7 @@ public abstract class ByteBuffer
      *
      * @return  <tt>true</tt> if, and only if, this buffer is direct
      */
+    // 是否堆外缓冲区
     public abstract boolean isDirect();
 
 
@@ -1586,6 +1610,9 @@ public abstract class ByteBuffer
      *
      * @return  A new char buffer
      */
+    // 将当前字节缓冲区装饰一个默认字节序的字符缓冲区。新缓冲区的内容将从该缓冲区的当前位置开始。
+    // 此缓冲区内容的更改将在新缓冲区中可见，反之亦然；两个缓冲区的位置、限制和标记值将是独立的。
+    // 注：将当前字节缓冲区封装为一个|char|型的视图。即，对外仅提供|char|型的操作接口
     public abstract CharBuffer asCharBuffer();
 
 
@@ -1685,6 +1712,9 @@ public abstract class ByteBuffer
      *
      * @return  A new short buffer
      */
+    // 将当前字节缓冲区装饰一个默认字节序的短整型缓冲区。新缓冲区的内容将从该缓冲区的当前位置开始。
+    // 此缓冲区内容的更改将在新缓冲区中可见，反之亦然；两个缓冲区的位置、限制和标记值将是独立的。
+    // 注：将当前字节缓冲区封装为一个|short|型的视图。即，对外仅提供|short|型的操作接口
     public abstract ShortBuffer asShortBuffer();
 
 
@@ -1784,6 +1814,9 @@ public abstract class ByteBuffer
      *
      * @return  A new int buffer
      */
+    // 将当前字节缓冲区装饰一个默认字节序的整型缓冲区。新缓冲区的内容将从该缓冲区的当前位置开始。
+    // 此缓冲区内容的更改将在新缓冲区中可见，反之亦然；两个缓冲区的位置、限制和标记值将是独立的。
+    // 注：将当前字节缓冲区封装为一个|int|型的视图。即，对外仅提供|int|型的操作接口
     public abstract IntBuffer asIntBuffer();
 
 
@@ -1883,6 +1916,9 @@ public abstract class ByteBuffer
      *
      * @return  A new long buffer
      */
+    // 将当前字节缓冲区装饰一个默认字节序的长整型缓冲区。新缓冲区的内容将从该缓冲区的当前位置开始。
+    // 此缓冲区内容的更改将在新缓冲区中可见，反之亦然；两个缓冲区的位置、限制和标记值将是独立的。
+    // 注：将当前字节缓冲区封装为一个|long|型的视图。即，对外仅提供|long|型的操作接口
     public abstract LongBuffer asLongBuffer();
 
 
@@ -1982,6 +2018,9 @@ public abstract class ByteBuffer
      *
      * @return  A new float buffer
      */
+    // 将当前字节缓冲区装饰一个默认字节序的浮点缓冲区。新缓冲区的内容将从该缓冲区的当前位置开始。
+    // 此缓冲区内容的更改将在新缓冲区中可见，反之亦然；两个缓冲区的位置、限制和标记值将是独立的。
+    // 注：将当前字节缓冲区封装为一个|float|型的视图。即，对外仅提供|float|型的操作接口
     public abstract FloatBuffer asFloatBuffer();
 
 
@@ -2081,6 +2120,9 @@ public abstract class ByteBuffer
      *
      * @return  A new double buffer
      */
+    // 将当前字节缓冲区装饰一个默认字节序的双精度缓冲区。新缓冲区的内容将从该缓冲区的当前位置开始。
+    // 此缓冲区内容的更改将在新缓冲区中可见，反之亦然；两个缓冲区的位置、限制和标记值将是独立的。
+    // 注：将当前字节缓冲区封装为一个|double|型的视图。即，对外仅提供|double|型的操作接口
     public abstract DoubleBuffer asDoubleBuffer();
 
 }

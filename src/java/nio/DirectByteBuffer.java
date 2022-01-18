@@ -34,11 +34,11 @@ import sun.misc.VM;
 import sun.nio.ch.DirectBuffer;
 
 
-// 堆外内存的缓冲区。即，直接使用堆外内存存储数据，是|NIO|高性能的核心设计之一
-// 注：堆外内存可用|malloc/mmap|分配，它们可直接作为系统|I/O|函数的参数，减少了内存间的拷贝
-// 使用|malloc|分配的内存，可避免|JVM|与|Native（用户态）|间的内存拷贝；使用|mmap|分配的
-// 内存，还可以避免|Native（用户态）|与|Native（内核态）|间的内存拷贝，即，零拷贝（|DMA|是
-// 无法优化掉的。即，磁盘与主存间的拷贝依然需要）
+// 堆外内存的缓冲区。即，直接使用堆外内存读写数据，是|NIO|高性能的核心设计之一
+// 注：堆外内存是指用|malloc()/mmap()|分配的内存，它们可以直接作为系统|IO|函数的参数，这减少了内存间的拷
+// 贝。若使用|malloc()|分配堆外内存，它可以避免|JVM|与|Native（用户态）|间的内存拷贝；若使用|mmap|分配
+// 的堆外内存，甚至还可以避免|Native（用户态）|与|Native（内核态）|间的内存拷贝，也就是零拷贝（不过，磁盘
+// 与主存间的数据拷贝依然存在。即，|DMA|是无法优化掉的）
 // 亮点：基于虚引用，使用|Cleaner|机制，进行堆外内存的回收工作
 //
 // |-XX:+PageAlignDirectMemory|指定申请的内存是否需要按页对齐。默认不对其
@@ -215,6 +215,10 @@ class DirectByteBuffer
 
     // For memory-mapped buffers -- invoked by FileChannelImpl via reflection
     //
+    // 基于|mmap()|共享内存地址|addr|、以及自定义清理器|unmapper|，构建一个零拷贝的堆
+    // 外缓冲区
+    // 注：此处的|fd|与|unmapper|参数，所关联的文件描述符都是|-1|，因为映射一旦建立，就不
+    // 再依赖于用于创建它的文件通道，特别是关闭通道对映射的有效性没有影响，反之也是
     protected DirectByteBuffer(int cap, long addr,
                                      FileDescriptor fd,
                                      Runnable unmapper)
@@ -249,6 +253,9 @@ class DirectByteBuffer
 
     }
 
+    // 基于当前缓冲区的当前位置、容量和限制，创建一个新的字节缓冲区
+    // 注：对原始缓冲区内容的更改将在新缓冲区中可见，反之亦然。它们共享了底层的缓冲区内存（新的缓冲
+    // 区仅使用原始内存的其中一个子序列）；不过，这两个缓冲区的位置，限制和标记值是独立的
     public ByteBuffer slice() {
         int pos = this.position();
         int lim = this.limit();
@@ -259,6 +266,9 @@ class DirectByteBuffer
         return new DirectByteBuffer(this, -1, 0, rem, rem, off);
     }
 
+    // 基于当前缓冲区的当前位置、限制、标记、容量和限制，创建一个新的字节缓冲区
+    // 注：对原始缓冲区内容的更改将在新缓冲区中可见，反之亦然。它们共享了底层的缓冲区内存（新的缓冲
+    // 区使用原始内存的全部序列）；不过，这两个缓冲区的位置，限制和标记值是独立的
     public ByteBuffer duplicate() {
         return new DirectByteBuffer(this,
                                               this.markValue(),
@@ -268,6 +278,9 @@ class DirectByteBuffer
                                               0);
     }
 
+    // 基于当前缓冲区的当前位置、限制、标记、容量和限制，创建一个新的、只读的、字节缓冲区
+    // 注：对原始缓冲区内容的更改将在新缓冲区中可见，但新的缓冲区只读。它们共享了底层的缓冲区内存（新
+    // 的缓冲区使用原始内存的全部序列）；不过，这两个缓冲区的位置，限制和标记值是独立的
     public ByteBuffer asReadOnlyBuffer() {
 
         return new DirectByteBufferR(this,
@@ -426,6 +439,10 @@ class DirectByteBuffer
 
     }
 
+    // 压缩此缓冲区（可选操作）。即，将缓冲区的当前|position|和它的|limit|之间的字节复制到缓冲区的
+    // 开头，并将标记丢弃
+    // 注：缓冲区的|position|设置为复制的字节数，而不是零，以便调用此方法后可以立即调用|put()|方法
+    // 注：在缓冲区写入数据后调用此方法，以防写入不完整
     public ByteBuffer compact() {
 
         int pos = position();

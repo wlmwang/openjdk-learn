@@ -152,6 +152,8 @@ public abstract class AbstractInterruptibleChannel
      * shown <a href="#be">above</a>, in order to implement asynchronous
      * closing and interruption for this channel.  </p>
      */
+    // 标记一个可能无限期阻塞|I/O|的开始。此方法应与|end()|方法一起调用，以实现通道的异步关闭
+    // 注：本质上，此处仅仅是注册一个当前线程中断时，自动调用的钩子方法
     protected final void begin() {
         if (interruptor == null) {
             interruptor = new Interruptible() {
@@ -192,6 +194,9 @@ public abstract class AbstractInterruptibleChannel
      * @throws  ClosedByInterruptException
      *          If the thread blocked in the I/O operation was interrupted
      */
+    // 标记一个可能无限期阻塞|I/O|的结束。此方法应与|begin()|方法一起调用，以实现通道的异步关闭
+    // 注：如果通道被异步关闭，抛出|AsynchronousCloseException|异常；如果在|I/O|操作中阻塞的
+    // 线程被中断，抛出|ClosedByInterruptException|异常
     protected final void end(boolean completed)
         throws AsynchronousCloseException
     {
