@@ -704,6 +704,10 @@ public abstract class ByteBuffer
      *          If the preconditions on the <tt>offset</tt> and <tt>length</tt>
      *          parameters do not hold
      */
+    // 从缓冲区中读取|length|个字节的数据到一个字节数组|dst[offset:offset+length]|中。
+    // 如果|length|为零，方法将立即返回零
+    // 注：如果缓冲区可读数据长度小于目标数组长度|length|，会抛出缓冲区下溢异常
+    // 注：底层会自动进行数组|dst|是否越界校验，即，方法可能会抛出|IndexOutOfBoundsException|
     public ByteBuffer get(byte[] dst, int offset, int length) {
         checkBounds(offset, length, dst.length);
         if (length > remaining())
@@ -849,6 +853,9 @@ public abstract class ByteBuffer
      * @throws  ReadOnlyBufferException
      *          If this buffer is read-only
      */
+    // 将字节数组|src[offset:offset+length]|拷贝到缓冲区中。如果|length|为零，方法将立即返回
+    // 注：如果缓冲区剩余空间不足，会抛出上溢异常
+    // 注：底层会自动进行数组|src|是否越界校验，即，方法可能会抛出|IndexOutOfBoundsException|
     public ByteBuffer put(byte[] src, int offset, int length) {
         checkBounds(offset, length, src.length);
         if (length > remaining())
@@ -881,6 +888,8 @@ public abstract class ByteBuffer
      * @throws  ReadOnlyBufferException
      *          If this buffer is read-only
      */
+    // 将字节数组|src]|拷贝到缓冲区中。如果数组为空，方法将立即返回
+    // 注：如果缓冲区剩余空间不足，会抛出上溢异常
     public final ByteBuffer put(byte[] src) {
         return put(src, 0, src.length);
     }

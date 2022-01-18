@@ -3192,8 +3192,8 @@ public class Arrays {
      * @throws NullPointerException if <tt>original</tt> is null
      * @since 1.6
      */
-    // 申请一块newLength长度的数组内存，他的数据拷贝自原始的original数组内容
-    // 这个函数一般用在数组的扩缩容场景中。即：将 original 数组扩缩容至 newLength 长度
+    // 申请一块|newLength|长度的数组内存，他的数据拷贝自原始的|original|数组内容
+    // 注：这个函数一般用在数组的扩缩容场景中。即，将|original|数组扩缩容至|newLength|长度
     @SuppressWarnings("unchecked")
     public static <T> T[] copyOf(T[] original, int newLength) {
         return (T[]) copyOf(original, newLength, original.getClass());
@@ -3223,10 +3223,12 @@ public class Arrays {
      *     an array of class <tt>newType</tt>
      * @since 1.6
      */
-    // 申请一块 newLength 长度的数组内存，他的数据拷贝自原始的 original 数组内容。注：newType是数组的类型，不是数组元素的类型
-    // 这个函数一般用在数组的扩缩容场景中。即：将 original 数组扩缩容至 newLength 长度
+    // 申请一块|newLength|长度的数组内存，他的数据拷贝自原始的|original|数组内容
+    // 注：这个函数一般用在数组的扩缩容场景中。即，将|original|数组扩缩容至|newLength|长度
+    // 注：|newType|是数组的类型，不是数组元素的类型。即，数组存储容器，可存放子类元素
     public static <T,U> T[] copyOf(U[] original, int newLength, Class<? extends T[]> newType) {
-        // 当原始数组类型为Object[]时，可以直接使用new申请；若不是，则必须使用Array.newInstance进行申请，其参数是数组元素类型和数组长度
+        // 1.当原始数组类型为|Object[]|时，可以直接使用|new|申请；
+        // 2.若不是，则必须使用|Array.newInstance|进行申请，其参数|newType|是数组（元素）类型和|newLength|数组长度
         @SuppressWarnings("unchecked")
         T[] copy = ((Object)newType == (Object)Object[].class)
             ? (T[]) new Object[newLength]

@@ -164,6 +164,10 @@ public abstract class InputStream implements Closeable {
      * <code>b.length - off</code>
      * @see        java.io.InputStream#read()
      */
+    // 从输入流中读取最多|len|个字节的数据到一个字节数组|b[off:off+len]|中。如果|len|不为零，
+    // 则该方法将可能被阻塞，直到输入可用；如果|len|为零，方法将立即返回零
+    // 注：底层会自动进行数组|b|是否越界校验，即，方法可能会抛出|IndexOutOfBoundsException|
+    // 注：返回实际读取的字节数；若为|-1|，则表示已经读取到流末尾
     public int read(byte b[], int off, int len) throws IOException {
         if (b == null) {
             throw new NullPointerException();

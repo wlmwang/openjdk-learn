@@ -160,7 +160,10 @@ class HeapByteBuffer
 
 
 
-
+    // 从缓冲区中读取|length|个字节的数据到一个字节数组|dst[offset:offset+length]|中。
+    // 如果|length|为零，方法将立即返回零
+    // 注：如果缓冲区可读数据长度小于目标数组长度|length|，会抛出缓冲区下溢异常
+    // 注：底层会自动进行数组|dst|是否越界校验，即，方法可能会抛出|IndexOutOfBoundsException|
     public ByteBuffer get(byte[] dst, int offset, int length) {
         checkBounds(offset, length, dst.length);
         if (length > remaining())
@@ -198,8 +201,9 @@ class HeapByteBuffer
 
     }
 
-    // 将字节数组|src[offset:offset+length]|拷贝到当前缓冲区中。如果|length|为零，方法将立即返回
-    // 注：内部会自动进行数组|src|是否越界校验，即，方法可能会抛出|IndexOutOfBoundsException|
+    // 将字节数组|src[offset:offset+length]|拷贝到缓冲区中。如果|length|为零，方法将立即返回
+    // 注：如果缓冲区剩余空间不足，会抛出上溢异常
+    // 注：底层会自动进行数组|src|是否越界校验，即，方法可能会抛出|IndexOutOfBoundsException|
     public ByteBuffer put(byte[] src, int offset, int length) {
 
         checkBounds(offset, length, src.length);
