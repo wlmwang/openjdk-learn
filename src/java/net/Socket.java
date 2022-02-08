@@ -50,13 +50,20 @@ import java.security.PrivilegedAction;
  * @see     java.nio.channels.SocketChannel
  * @since   JDK1.0
  */
+// 客户端套接字。主要用来操作客户端与服务端之间网络通信，比如数据的读取、写入、和关闭等等
+// 注：本类将套接字实现的细节委托至|SocketImpl|类。对外提供一个简洁的客户端套接字视图
 public
 class Socket implements java.io.Closeable {
     /**
      * Various states of this socket.
      */
+    // 客户端套接字已创建标志位。即，该套接字是否与|OS|层的网络套接字的描述符已完成了关联动作
     private boolean created = false;
+
+    // 客户端套接字已绑定标志位。即，该套接字关联的|OS|层的网络套接字的描述符已完成了绑定动作
     private boolean bound = false;
+
+    // 客户端套接字已连接标志位。即，该套接字关联的|OS|层的网络套接字的描述符已完成了连接动作
     private boolean connected = false;
     private boolean closed = false;
     private Object closeLock = new Object();
@@ -66,6 +73,7 @@ class Socket implements java.io.Closeable {
     /**
      * The implementation of this Socket.
      */
+    // 客户端端套接字具体实现对象
     SocketImpl impl;
 
     /**
@@ -205,6 +213,8 @@ class Socket implements java.io.Closeable {
      * @see        java.net.SocketImplFactory#createSocketImpl()
      * @see        SecurityManager#checkConnect
      */
+    // 创建一个客户端流套接字，并将其连接到指定的域名、端口的服务器上
+    // 注：当客户端套接字的远程域名为空时，表示连接至回环地址；本地的网络地址接口、端口号由系统设置
     public Socket(String host, int port)
         throws UnknownHostException, IOException
     {
@@ -240,6 +250,8 @@ class Socket implements java.io.Closeable {
      * @see        java.net.SocketImplFactory#createSocketImpl()
      * @see        SecurityManager#checkConnect
      */
+    // 创建一个客户端流套接字，并将其连接到指定的网络地址、端口的服务端上
+    // 注：客户端套接字的远程地址不能为空；本地的网络地址接口、端口号由系统设置
     public Socket(InetAddress address, int port) throws IOException {
         this(address != null ? new InetSocketAddress(address, port) : null,
              (SocketAddress) null, true);
@@ -281,6 +293,8 @@ class Socket implements java.io.Closeable {
      * @see        SecurityManager#checkConnect
      * @since   JDK1.1
      */
+    // 创建一个客户端流套接字，并将其连接到指定的域名、端口的服务端上
+    // 注：客户端套接字的远程域名为空时，表示连接至本机；本地的网络地址接口、端口号由外部参数指定
     public Socket(String host, int port, InetAddress localAddr,
                   int localPort) throws IOException {
         this(host != null ? new InetSocketAddress(host, port) :
@@ -323,6 +337,8 @@ class Socket implements java.io.Closeable {
      * @see        SecurityManager#checkConnect
      * @since   JDK1.1
      */
+    // 创建一个客户端流套接字，并将其连接到指定的网络地址、端口的服务端上
+    // 注：客户端套接字的远程地址不能为空；本地的网络地址接口、端口号由外部参数指定
     public Socket(InetAddress address, int port, InetAddress localAddr,
                   int localPort) throws IOException {
         this(address != null ? new InetSocketAddress(address, port) : null,
@@ -419,18 +435,29 @@ class Socket implements java.io.Closeable {
              new InetSocketAddress(0), stream);
     }
 
+    // 创建一个客户端套接字，并将其连接到指定的套接字地址上，而本地套接字地址绑定到|localAddr|
+    // 注：当连接成功建立后，设置该套接字的已创建、已连接，已绑定的标志位
+    // 注：当|stream=true|时，创建流套接字，反之为报文套接字；当本地套接字参数为空，系统自动分配
     private Socket(SocketAddress address, SocketAddress localAddr,
                    boolean stream) throws IOException {
+        // 创建、设置服务端套接字具体实现对象
         setImpl();
 
         // backward compatibility
+        // 服务器套接字地址参数校验
         if (address == null)
             throw new NullPointerException();
 
         try {
+            // 创建客户端套接字具体实现对象，并设置套接字已创建标志位
             createImpl(stream);
+
+            // 当本地套接字参数不为空时，将套接字与网络套接字地址进行绑定，并设置套接字已绑定标志位
             if (localAddr != null)
                 bind(localAddr);
+
+            // 在|OS|层将套接字连接到指定的服务端的套接字地址上。该方法会一直阻塞，直到连接被建立、或发现异常
+            // 注：当连接成功建立后，设置该套接字的已连接，已绑定的标志位
             connect(address);
         } catch (IOException | IllegalArgumentException | SecurityException e) {
             try {
@@ -450,9 +477,14 @@ class Socket implements java.io.Closeable {
      * @throws IOException if creation fails
      * @since 1.4
      */
-     void createImpl(boolean stream) throws SocketException {
+    // 创建客户端套接字具体实现对象，并设置套接字已创建标志位
+    // 注：第一次调用时，将会自动创建该实现对象，并将其与|OS|层的网络套接字描述符进行绑定
+    void createImpl(boolean stream) throws SocketException {
+        // 创建、设置客户端套接字具体实现对象
         if (impl == null)
             setImpl();
+
+        // 在|OS|层创建一个套接字，并将描述符设置到|fd.fd|字段上
         try {
             impl.create(stream);
             created = true;
@@ -493,6 +525,7 @@ class Socket implements java.io.Closeable {
      * Sets impl to the system-default type of SocketImpl.
      * @since 1.4
      */
+    // 创建、设置服务端套接字具体实现对象
     void setImpl() {
         if (factory != null) {
             impl = factory.createSocketImpl();
@@ -500,8 +533,12 @@ class Socket implements java.io.Closeable {
         } else {
             // No need to do a checkOldImpl() here, we know it's an up to date
             // SocketImpl!
+            // 创建一个普通套接字具体传输协议实现的对象
             impl = new SocksSocketImpl();
         }
+
+        // 设置套接字具体实现对象，将其与客户端套接字对象进行绑定
+        // 注：可以将该套接字的实现对象标识为客户端类型
         if (impl != null)
             impl.setSocket(this);
     }
@@ -515,6 +552,8 @@ class Socket implements java.io.Closeable {
      * @throws SocketException if creation fails
      * @since 1.4
      */
+    // 获取客户端套接字的具体传输协议实现的对象
+    // 注：第一次调用时，将会自动创建该实现对象，并将其与|OS|层的网络套接字描述符进行绑定
     SocketImpl getImpl() throws SocketException {
         if (!created)
             createImpl(true);
@@ -534,6 +573,8 @@ class Socket implements java.io.Closeable {
      * @since 1.4
      * @spec JSR-51
      */
+    // 在|OS|层将套接字连接到指定的服务端的套接字地址上。该方法会一直阻塞，直到连接被建立、或发现异常
+    // 注：当连接成功建立后，设置该套接字的已创建、已连接，已绑定的标志位
     public void connect(SocketAddress endpoint) throws IOException {
         connect(endpoint, 0);
     }
@@ -555,6 +596,11 @@ class Socket implements java.io.Closeable {
      * @since 1.4
      * @spec JSR-51
      */
+    // 在|OS|层将套接字连接到指定的服务端的套接字地址上。该方法会一直阻塞，直到连接被建立、超时或发生异常
+    // 注：当|timeout<=0|时，连接无超时限制；当|timeout>0|时，则在超时前仍未建立连接时，抛出异常
+    // 注：当连接成功，设置客户端套接字的已创建、已连接、已绑定标志位
+    // 注：当连接成功，服务端的地址与端口分别被设置到|adress|和|port|字段上；而客户端的描述符将被设
+    // 置到|fd.fd|字段上，客户端实际绑定端口被设置到|localPort|字段上
     public void connect(SocketAddress endpoint, int timeout) throws IOException {
         if (endpoint == null)
             throw new IllegalArgumentException("connect: The address can't be null");
@@ -562,15 +608,16 @@ class Socket implements java.io.Closeable {
         if (timeout < 0)
           throw new IllegalArgumentException("connect: timeout can't be negative");
 
+        // 当前套接字必须是未关闭、未连接的
         if (isClosed())
             throw new SocketException("Socket is closed");
-
         if (!oldImpl && isConnected())
             throw new SocketException("already connected");
 
         if (!(endpoint instanceof InetSocketAddress))
             throw new IllegalArgumentException("Unsupported address type");
 
+        // 检查待连接的网络地址与端口号，是否有连接权限
         InetSocketAddress epoint = (InetSocketAddress) endpoint;
         InetAddress addr = epoint.getAddress ();
         int port = epoint.getPort();
@@ -583,17 +630,23 @@ class Socket implements java.io.Closeable {
             else
                 security.checkConnect(addr.getHostAddress(), port);
         }
+
+        // 创建、设置客户端套接字具体实现对象
         if (!created)
             createImpl(true);
+
         if (!oldImpl)
-            impl.connect(epoint, timeout);
+            impl.connect(epoint, timeout);  // 连接到指定的服务端的套接字地址
         else if (timeout == 0) {
+            // 使用上一个客户端套接字具体实现对象
             if (epoint.isUnresolved())
                 impl.connect(addr.getHostName(), port);
             else
                 impl.connect(addr, port);
         } else
             throw new UnsupportedOperationException("SocketImpl.connect(addr, timeout)");
+
+        // 设置已连接、已绑定标志位
         connected = true;
         /*
          * If the socket was not bound before the connect, it is now because
@@ -620,20 +673,29 @@ class Socket implements java.io.Closeable {
      * @since   1.4
      * @see #isBound
      */
+    // 将套接字与网络套接字地址（网络地址、端口号）进行绑定、并设置套接字已绑定标志位
     public void bind(SocketAddress bindpoint) throws IOException {
+        // 当前套接字必须是未关闭、未绑定的
         if (isClosed())
             throw new SocketException("Socket is closed");
         if (!oldImpl && isBound())
             throw new SocketException("Already bound");
 
+        // 检查网络套接字地址数据类型是否正确，否则抛出异常
         if (bindpoint != null && (!(bindpoint instanceof InetSocketAddress)))
             throw new IllegalArgumentException("Unsupported address type");
+
+        // 该网络套接字地址（网络地址+端口号）必须已经解析
         InetSocketAddress epoint = (InetSocketAddress) bindpoint;
         if (epoint != null && epoint.isUnresolved())
             throw new SocketException("Unresolved address");
+
+        // 若参数为|null|，网络地址接口、端口号由系统分配
         if (epoint == null) {
             epoint = new InetSocketAddress(0);
         }
+
+        // 检查待绑定的网络地址与端口号，是否有绑定权限
         InetAddress addr = epoint.getAddress();
         int port = epoint.getPort();
         checkAddress (addr, "bind");
@@ -641,6 +703,9 @@ class Socket implements java.io.Closeable {
         if (security != null) {
             security.checkListen(port);
         }
+
+        // 在|OS|层将套接字与网络地址、端口号进行绑定。并将地址设置到|address|、以及将
+        // 实际端口号设置到|localPort|字段上
         getImpl().bind (addr, port);
         bound = true;
     }
@@ -657,6 +722,7 @@ class Socket implements java.io.Closeable {
     /**
      * set the flags after an accept() call.
      */
+    // 接受客户端连接的后置处理器。即，设置客户端套接字的已连接、已创建、已绑定状态
     final void postAccept() {
         connected = true;
         created = true;
@@ -685,6 +751,8 @@ class Socket implements java.io.Closeable {
      * @return  the remote IP address to which this socket is connected,
      *          or {@code null} if the socket is not connected.
      */
+    // 获取对端网络地址：客户端套接字连接的服务器网络地址；服务器接受连接时该客户端套接字的网络地址
+    // 注：如果套接字未连接，则返回|null|；如果套接字已连接，则此方法将在套接字关闭后，仍返回连接地址
     public InetAddress getInetAddress() {
         if (!isConnected())
             return null;
@@ -710,12 +778,17 @@ class Socket implements java.io.Closeable {
      *
      * @see SecurityManager#checkConnect
      */
+    // 获取套接字的本机的网络地址
+    // 注：当获取的网络地址没有连接权限时，返回本机回环地址。这使得获取的地址，可供客户端来绑定本机
     public InetAddress getLocalAddress() {
         // This is for backward compatibility
+        // 套接字还未是绑定状态时，返回抽象的本机的任意地址|0.0.0.0|
         if (!isBound())
             return InetAddress.anyLocalAddress();
         InetAddress in = null;
         try {
+            // 底层使用|getsockname(fd, (struct sockaddr *)&him, &len)|来获取本地地址，
+            // 并检查连接权限
             in = (InetAddress) getImpl().getOption(SocketOptions.SO_BINDADDR);
             SecurityManager sm = System.getSecurityManager();
             if (sm != null)
@@ -724,6 +797,7 @@ class Socket implements java.io.Closeable {
                 in = InetAddress.anyLocalAddress();
             }
         } catch (SecurityException e) {
+            // 当获取的网络地址没有绑定权限时，返回本机回环地址
             in = InetAddress.getLoopbackAddress();
         } catch (Exception e) {
             in = InetAddress.anyLocalAddress(); // "0.0.0.0"
@@ -741,6 +815,8 @@ class Socket implements java.io.Closeable {
      * @return  the remote port number to which this socket is connected, or
      *          0 if the socket is not connected yet.
      */
+    // 获取对端端口号：客户端套接字连接的服务器端口号
+    // 注：如果套接字未连接，则返回|0|；如果套接字已连接，则此方法将在套接字关闭后，仍返回连接端口
     public int getPort() {
         if (!isConnected())
             return 0;
@@ -762,6 +838,8 @@ class Socket implements java.io.Closeable {
      * @return  the local port number to which this socket is bound or -1
      *          if the socket is not bound yet.
      */
+    // 返回客户端套接字的本地端口号
+    // 注：如果套接字未连接，则返回|-1|；如果套接字已连接，则此方法将在套接字关闭后，仍返回本地端口
     public int getLocalPort() {
         if (!isBound())
             return -1;
@@ -790,6 +868,8 @@ class Socket implements java.io.Closeable {
      * @see #connect(SocketAddress)
      * @since 1.4
      */
+    // 获取对端的套接字地址
+    // 注：如果套接字未连接，则返回|null|；如果套接字已连接，则此方法将在套接字关闭后，仍返回连接地址
     public SocketAddress getRemoteSocketAddress() {
         if (!isConnected())
             return null;
@@ -826,6 +906,8 @@ class Socket implements java.io.Closeable {
      * @since 1.4
      */
 
+    // 获取本地的套接字地址
+    // 注：如果套接字未连接，则返回|null|；如果套接字已连接，则此方法将在套接字关闭后，仍返回本地地址
     public SocketAddress getLocalSocketAddress() {
         if (!isBound())
             return null;
@@ -898,6 +980,7 @@ class Socket implements java.io.Closeable {
      * @revised 1.4
      * @spec JSR-51
      */
+    // 获取该套接字的输入流
     public InputStream getInputStream() throws IOException {
         if (isClosed())
             throw new SocketException("Socket is closed");
@@ -938,6 +1021,7 @@ class Socket implements java.io.Closeable {
      * @revised 1.4
      * @spec JSR-51
      */
+    // 获取该套接字的输出流
     public OutputStream getOutputStream() throws IOException {
         if (isClosed())
             throw new SocketException("Socket is closed");

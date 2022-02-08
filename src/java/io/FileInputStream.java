@@ -357,7 +357,7 @@ class FileInputStream extends InputStream
     // 核心：区分|FileInputStream.fd.fd|的类型，分别做如下处理：
     // 1.如果是常规的文件，则使用|fstat64()|总字节数，减去|lseek64()|偏移量
     // 2.如果是|socket,pipe|等文件，则使用|ioctl|接受缓冲区总字节数，减去|lseek64()|偏移量
-    // 注：系统调用|ioctl(fd, FIONREAD, &n)|可以得到描述符|fd|的缓冲区里有多少字节要被读取
+    // 注：系统调用|ioctl(fd, FIONREAD, &n)|可以得到描述符|fd|的缓冲区里有多少字节可被读取
     public native int available() throws IOException;
 
     /**

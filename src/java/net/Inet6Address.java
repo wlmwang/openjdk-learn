@@ -200,6 +200,7 @@ class Inet6Address extends InetAddress {
         /**
          * Holds a 128-bit (16 bytes) IPv6 address.
          */
+        // 网络地址|IPv6|的字节数组表示
         byte[] ipaddress;
 
         /**
@@ -255,6 +256,7 @@ class Inet6Address extends InetAddress {
             }
         }
 
+        // 将网络地址转换为字符串格式返回
         String getHostAddress() {
             String s = numericToTextFormat(ipaddress);
             if (scope_ifname != null) { /* must check this first */
@@ -867,6 +869,7 @@ class Inet6Address extends InetAddress {
      *
      * @return  the raw IP address in a string format.
      */
+    // 将网络地址转换为字符串格式返回
     @Override
     public String getHostAddress() {
         return holder6.getHostAddress();

@@ -49,10 +49,13 @@ import java.io.ObjectStreamField;
  * @see java.net.ServerSocket
  * @since 1.4
  */
+// 网络套接字地址类（请区分|InetAddress|类）。其内部封装了网络地址与端口号、及主机名
+// 注：该类最主要的功能除了封装网络地址与端口号，还有就是将主机名自动解析至网络地址
 public class InetSocketAddress
     extends SocketAddress
 {
     // Private implementation class pointed to by all public methods.
+    // 封装了外部传递的关于网络套接字相关的参数。包括：域名、网络地址，以及端口号
     private static class InetSocketAddressHolder {
         // The hostname of the Socket Address
         private String hostname;
@@ -134,6 +137,7 @@ public class InetSocketAddress
         }
     }
 
+    // 封装了外部传递的关于网络套接字相关的参数。包括：域名、网络地址，以及端口号
     private final transient InetSocketAddressHolder holder;
 
     private static final long serialVersionUID = 5076001401234631237L;
@@ -181,6 +185,7 @@ public class InetSocketAddress
      * @throws IllegalArgumentException if the port parameter is outside the specified
      * range of valid port values.
      */
+    // 创建一个指定网络地址、端口的网络套接字地址
     public InetSocketAddress(InetAddress addr, int port) {
         holder = new InetSocketAddressHolder(
                         null,
@@ -212,11 +217,15 @@ public class InetSocketAddress
      *                           denied.
      * @see     #isUnresolved()
      */
+    // 创建一个指定域名、端口的网络套接字地址。域名将被自动解析
+    // 注：主机名可以是机器名，例如|java.sun.com|；也可以|IP|文本地址，内部会检查其有效性
+    // 注：若待解析的域名为空，返回回环地址；否则根据|NS|解析域名，返回首个|IP|地址，解析缓存默认|30|秒
     public InetSocketAddress(String hostname, int port) {
         checkHost(hostname);
         InetAddress addr = null;
         String host = null;
         try {
+            // 将域名解析为网络地址，如果解析失败，抛出异常
             addr = InetAddress.getByName(hostname);
         } catch(UnknownHostException e) {
             host = hostname;

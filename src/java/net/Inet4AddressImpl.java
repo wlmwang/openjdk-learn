@@ -31,9 +31,16 @@ import java.io.IOException;
  * @since 1.4
  */
 class Inet4AddressImpl implements InetAddressImpl {
+    // 获取本机的主机名，如果获取失败，抛出异常
+    // 注：先使用|getaddrinfo(hostname, NULL, &hints, &res)|，而|hints={ai_flags=AI_CANONNAME, ai_family=AF_INET}|
+    // 再使用|getnameinfo(res->ai_addr, res->ai_addrlen, hostname, NI_MAXHOST, NULL, 0, NI_NAMEREQD)|
     public native String getLocalHostName() throws UnknownHostException;
+
+    // 将主机名解析为|IPv4|的网络地址，如果解析失败，抛出异常
+    // 注：获取方法|getaddrinfo(hostname, NULL, &hints, &res)|，而|hints={ai_flags=AI_CANONNAME, ai_family=AF_INET}|
     public native InetAddress[]
         lookupAllHostAddr(String hostname) throws UnknownHostException;
+
     public native String getHostByAddr(byte[] addr) throws UnknownHostException;
     private native boolean isReachable0(byte[] addr, int timeout, byte[] ifaddr, int ttl) throws IOException;
 
@@ -45,6 +52,7 @@ class Inet4AddressImpl implements InetAddressImpl {
         return anyLocalAddress;
     }
 
+    // 返回|IPv4|的回环地址|hostname=localhost, address=127.0.0.1|
     public synchronized InetAddress loopbackAddress() {
         if (loopbackAddress == null) {
             byte[] loopback = {0x7f,0x00,0x00,0x01};

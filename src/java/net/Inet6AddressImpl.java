@@ -37,7 +37,13 @@ import java.io.IOException;
  */
 
 class Inet6AddressImpl implements InetAddressImpl {
+    // 获取本机的主机名，如果获取失败，抛出异常
+    // 注：先使用|getaddrinfo(hostname, NULL, &hints, &res)|，而|hints={ai_flags=AI_CANONNAME, ai_family=AF_UNSPEC}|
+    // 再使用|getnameinfo(res->ai_addr, res->ai_addrlen, hostname, NI_MAXHOST, NULL, 0, NI_NAMEREQD)|
     public native String getLocalHostName() throws UnknownHostException;
+
+    // 将主机名解析为|IPv6|的网络地址，如果解析失败，抛出异常
+    // 注：底层使用|getaddrinfo(hostname, NULL, &hints, &res)|，而|hints={ai_flags=AI_CANONNAME, ai_family=AF_UNSPEC}|
     public native InetAddress[]
         lookupAllHostAddr(String hostname) throws UnknownHostException;
     public native String getHostByAddr(byte[] addr) throws UnknownHostException;
@@ -89,6 +95,7 @@ class Inet6AddressImpl implements InetAddressImpl {
         return anyLocalAddress;
     }
 
+    // 返回|IPv6|的回环地址|hostname=localhost, address=::1|
     public synchronized InetAddress loopbackAddress() {
         if (loopbackAddress == null) {
              if (InetAddress.preferIPv6Address) {

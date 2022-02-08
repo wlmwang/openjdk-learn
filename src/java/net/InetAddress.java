@@ -185,6 +185,7 @@ import sun.net.spi.nameservice.*;
  * @see     java.net.InetAddress#getLocalHost()
  * @since JDK1.0
  */
+// 网络地址类（请区分|InetSocketAddress|类）。是|Inet4Address|和|Inet6Address|类的基类
 public
 class InetAddress implements java.io.Serializable {
     /**
@@ -656,6 +657,7 @@ class InetAddress implements java.io.Serializable {
      * @return  the raw IP address in a string format.
      * @since   JDK1.0.2
      */
+    // 将网络地址转换为字符串格式返回
     public String getHostAddress() {
         return null;
      }
@@ -708,8 +710,10 @@ class InetAddress implements java.io.Serializable {
     /*
      * Cached addresses - our own litle nis, not!
      */
+    // 域名解析成功时，缓存的解析记录
     private static Cache addressCache = new Cache(Cache.Type.Positive);
 
+    // 域名解析失败时，缓存的解析记录
     private static Cache negativeCache = new Cache(Cache.Type.Negative);
 
     private static boolean addressCacheInit = false;
@@ -767,16 +771,21 @@ class InetAddress implements java.io.Serializable {
          */
         public Cache put(String host, InetAddress[] addresses) {
             int policy = getPolicy();
+
+            // 不使用域名解析缓存
             if (policy == InetAddressCachePolicy.NEVER) {
                 return this;
             }
 
             // purge any expired entries
 
+            // 待超时的域名解析缓存
             if (policy != InetAddressCachePolicy.FOREVER) {
 
                 // As we iterate in insertion order we can
                 // terminate when a non-expired entry is found.
+
+                // 遍历所有解析记录，收集已经超时的域名解析条目
                 LinkedList<String> expired = new LinkedList<>();
                 long now = System.currentTimeMillis();
                 for (String key : cache.keySet()) {
@@ -789,6 +798,7 @@ class InetAddress implements java.io.Serializable {
                     }
                 }
 
+                // 清除已经超时的域名解析条目
                 for (String key : expired) {
                     cache.remove(key);
                 }
@@ -798,6 +808,7 @@ class InetAddress implements java.io.Serializable {
             // -- as a HashMap replaces existing entries we
             //    don't need to explicitly check if there is
             //    already an entry for this host.
+            // 计算当前域名解析记录的过期时间
             long expiration;
             if (policy == InetAddressCachePolicy.FOREVER) {
                 expiration = -1;
@@ -821,9 +832,10 @@ class InetAddress implements java.io.Serializable {
             CacheEntry entry = cache.get(host);
 
             // check if entry has expired
+            // 缓存过期策略：非永久有效，则检查该域名解析记录的过期时间
             if (entry != null && policy != InetAddressCachePolicy.FOREVER) {
                 if (entry.expiration >= 0 &&
-                    entry.expiration < System.currentTimeMillis()) {
+                    entry.expiration < System.currentTimeMillis()) {    // 已过期
                     cache.remove(host);
                     entry = null;
                 }
@@ -837,6 +849,7 @@ class InetAddress implements java.io.Serializable {
      * Initialize cache and insert anyLocalAddress into the
      * unknown array with no expiry.
      */
+    // 初始化域名到地址解析缓存
     private static void cacheInitIfNeeded() {
         assert Thread.holdsLock(addressCache);
         if (addressCacheInit) {
@@ -845,6 +858,7 @@ class InetAddress implements java.io.Serializable {
         unknown_array = new InetAddress[1];
         unknown_array[0] = impl.anyLocalAddress();
 
+        // 缓存本机的"任意地址"条目
         addressCache.put(impl.anyLocalAddress().getHostName(),
                          unknown_array);
 
@@ -872,12 +886,15 @@ class InetAddress implements java.io.Serializable {
      * Lookup hostname in cache (positive & negative cache). If
      * found return addresses, null if not found.
      */
+    // 从域名到地址解析的缓存中获取域名对应的地址，获取失败，返回|null|
+    // 注：缓存策略有：|NEVER|不使用、|FOREVER|永久有效、|DEFAULT_POSITIVE|有效期为三十秒
     private static InetAddress[] getCachedAddresses(String hostname) {
         hostname = hostname.toLowerCase();
 
         // search both positive & negative caches
 
         synchronized (addressCache) {
+            // 初始化域名到地址解析缓存
             cacheInitIfNeeded();
 
             CacheEntry entry = addressCache.get(hostname);
@@ -1050,6 +1067,9 @@ class InetAddress implements java.io.Serializable {
      * @exception  SecurityException if a security manager exists
      *             and its checkConnect method doesn't allow the operation
      */
+    // 将主机名解析为网络地址，如果解析失败，抛出异常
+    // 注：主机名可以是机器名，例如|java.sun.com|；也可以|IP|文本地址，内部会检查其有效性
+    // 注：若待解析的域名为空，返回回环地址；否则根据|NS|解析域名，返回首个|IP|地址，解析缓存默认|30|秒
     public static InetAddress getByName(String host)
         throws UnknownHostException {
         return InetAddress.getAllByName(host)[0];
@@ -1100,20 +1120,30 @@ class InetAddress implements java.io.Serializable {
      *
      * @see SecurityManager#checkConnect
      */
+    // 解析指定主机名，返回其所有的网络地址数组
+    // 注：主机名可以是机器名，例如|java.sun.com|；也可以|IP|文本地址，内部会检查其有效性
+    // 注：若待解析的域名为空，返回回环地址；否则根据|NS|解析域名，返回|IP|地址数组，解析缓存默认|30|秒
     public static InetAddress[] getAllByName(String host)
         throws UnknownHostException {
         return getAllByName(host, null);
     }
 
+    // 解析指定主机名，返回其所有的网络地址数组
+    // 注：主机名可以是机器名，例如|java.sun.com|；也可以|IP|文本地址，内部会检查其有效性
+    // 注：若待解析的域名为空，返回回环地址；否则根据|NS|解析域名，返回|IP|地址数组，解析缓存默认|30|秒
+    // 注：若解析记录中，有等于|reqAddr|的网络地址，会将其移动到首条解析记录，以便之后作为返回结果
     private static InetAddress[] getAllByName(String host, InetAddress reqAddr)
         throws UnknownHostException {
 
+        // 当待解析的主机名为空时，返回本机回环地址
         if (host == null || host.length() == 0) {
             InetAddress[] ret = new InetAddress[1];
             ret[0] = impl.loopbackAddress();
             return ret;
         }
 
+        // 为了区别端口号，在|URL|中的|IPv6|地址需要用中括号|[]|括起来
+        // 注：比如，可能的地址字符串为|https://[2001::ff01]:8080/index.html|
         boolean ipv6Expected = false;
         if (host.charAt(0) == '[') {
             // This is supposed to be an IPv6 literal
@@ -1127,12 +1157,15 @@ class InetAddress implements java.io.Serializable {
         }
 
         // if host is an IP address, we won't do further lookup
+        // 当主机名首个字符为|0~F|或|:|时，直接尝试|IP|地址的解析，而不进行域名查询
+        // 注：若主机名为|IP|地址，将一定会进入此分支；但进入此分支的不一定全是|IP|地址
         if (Character.digit(host.charAt(0), 16) != -1
             || (host.charAt(0) == ':')) {
             byte[] addr = null;
             int numericZone = -1;
             String ifname = null;
             // see if it is IPv4 address
+            // 尝试解析|IPv4|地址到字节数组中，解析失败，返回|null|
             addr = IPAddressUtil.textToNumericFormatV4(host);
             if (addr == null) {
                 // This is supposed to be an IPv6 literal
@@ -1144,6 +1177,7 @@ class InetAddress implements java.io.Serializable {
                         ifname = host.substring (pos+1);
                     }
                 }
+                // 尝试解析|IPv6|地址到字节数组中，解析失败，返回|null|
                 if ((addr = IPAddressUtil.textToNumericFormatV6(host)) == null && host.contains(":")) {
                     throw new UnknownHostException(host + ": invalid IPv6 address");
                 }
@@ -1151,11 +1185,12 @@ class InetAddress implements java.io.Serializable {
                 // Means an IPv4 litteral between brackets!
                 throw new UnknownHostException("["+host+"]");
             }
+
             InetAddress[] ret = new InetAddress[1];
             if(addr != null) {
-                if (addr.length == Inet4Address.INADDRSZ) {
+                if (addr.length == Inet4Address.INADDRSZ) { // 解析|IPv4|地址成功
                     ret[0] = new Inet4Address(null, addr);
-                } else {
+                } else {    // 解析|IPv6|地址成功
                     if (ifname != null) {
                         ret[0] = new Inet6Address(null, addr, ifname);
                     } else {
@@ -1232,6 +1267,9 @@ class InetAddress implements java.io.Serializable {
         return getAllByName0 (host, null, check);
     }
 
+    // 解析指定主机名，返回其所有的网络地址数组
+    // 注：若待解析的域名为空，返回回环地址；否则根据|NS|解析域名，返回|IP|地址数组，解析缓存默认|30|秒
+    // 注：若解析记录中，有等于|reqAddr|的网络地址，会将其移动到首条解析记录，以便之后作为返回结果
     private static InetAddress[] getAllByName0 (String host, InetAddress reqAddr, boolean check)
         throws UnknownHostException  {
 
@@ -1248,10 +1286,13 @@ class InetAddress implements java.io.Serializable {
             }
         }
 
+        // 从域名到地址解析的缓存中获取域名对应的地址
         InetAddress[] addresses = getCachedAddresses(host);
 
         /* If no entry in cache, then do the host lookup */
+        // 缓存中不存在此域名的解析记录
         if (addresses == null) {
+            // 从域名解析服务器|NS|中查询该主机名的所有网络地址
             addresses = getAddressesFromNameService(host, reqAddr);
         }
 
@@ -1261,6 +1302,9 @@ class InetAddress implements java.io.Serializable {
         return addresses.clone();
     }
 
+    // 从域名解析服务器|NS|中查询该主机名的所有网络地址
+    // 注：若待解析的域名为空，返回回环地址；否则根据|NS|解析域名，返回|IP|地址数组，解析缓存默认|30|秒
+    // 注：若解析记录中，有等于|reqAddr|的网络地址，会将其移动到首条解析记录，以便之后作为返回结果
     private static InetAddress[] getAddressesFromNameService(String host, InetAddress reqAddr)
         throws UnknownHostException
     {
@@ -1286,7 +1330,10 @@ class InetAddress implements java.io.Serializable {
         //         it should add the host in the
         //         lookupTable and return null so the
         //         following code would do  a lookup itself.
+        // 检查待解析的主机名是否已经在查找表|lookupTable|中，这用于防止域名的并发解析
+        // 注：若不存在，则当前线程为域名的首解析线程；若已存在，则阻塞当前线程，直到首解析线程完成解析
         if ((addresses = checkLookupTable(host)) == null) {
+            // 只有域名的首解析线程执行此分支的域名解析工作
             try {
                 // This is the first thread which looks up the addresses
                 // this host or the cache entry for this host has been
@@ -1318,8 +1365,10 @@ class InetAddress implements java.io.Serializable {
                 }
 
                 // More to do?
+                // 若解析记录中，有等于|reqAddr|的网络地址，将其移动到首条解析记录中
                 if (reqAddr != null && addresses.length > 1 && !addresses[0].equals(reqAddr)) {
                     // Find it?
+                    // 查找所有解析记录，查找等于|reqAddr|网络地址的解析记录
                     int i = 1;
                     for (; i < addresses.length; i++) {
                         if (addresses[i].equals(reqAddr)) {
@@ -1327,6 +1376,7 @@ class InetAddress implements java.io.Serializable {
                         }
                     }
                     // Rotate
+                    // 若解析记录中，有等于|reqAddr|的网络地址，将其移动到首条解析记录
                     if (i < addresses.length) {
                         InetAddress tmp, tmp2 = reqAddr;
                         for (int j = 0; j < i; j++) {
@@ -1337,7 +1387,9 @@ class InetAddress implements java.io.Serializable {
                         addresses[i] = tmp2;
                     }
                 }
+
                 // Cache the address.
+                // 缓存域名解析的结果
                 cacheAddresses(host, addresses, success);
 
                 if (!success && ex != null)
@@ -1346,6 +1398,7 @@ class InetAddress implements java.io.Serializable {
             } finally {
                 // Delete host from the lookupTable and notify
                 // all threads waiting on the lookupTable monitor.
+                // 解析线程完成解析后，释放解析记录，以便后续线程可以再次解析
                 updateLookupTable(host);
             }
         }
@@ -1353,12 +1406,14 @@ class InetAddress implements java.io.Serializable {
         return addresses;
     }
 
-
+    // 检查待解析的主机名是否已经在|lookupTable|中，以防止域名的并发解析
+    // 注：若还不存在，则为域名的首个解析线程；若已存在，则阻塞当前线程，直到首解析线程完成解析
     private static InetAddress[] checkLookupTable(String host) {
         synchronized (lookupTable) {
             // If the host isn't in the lookupTable, add it in the
             // lookuptable and return null. The caller should do
             // the lookup.
+            // 若是域名的首解析线程，则添加解析条目，并返回|null|
             if (lookupTable.containsKey(host) == false) {
                 lookupTable.put(host, null);
                 return null;
@@ -1367,6 +1422,7 @@ class InetAddress implements java.io.Serializable {
             // If the host is in the lookupTable, it means that another
             // thread is trying to look up the addresses of this host.
             // This thread should wait.
+            // 若当前线程是非首解析线程时，则阻塞当前线程，直到首解析线程完成解析
             while (lookupTable.containsKey(host)) {
                 try {
                     lookupTable.wait();
@@ -1379,8 +1435,9 @@ class InetAddress implements java.io.Serializable {
         // the host. This thread should retry to get the addresses
         // from the addressCache. If it doesn't get the addresses from
         // the cache, it will try to look up the addresses itself.
+        // 当非首解析线程阻塞状态结束时，再次尝试查看域名的解析缓存
         InetAddress[] addresses = getCachedAddresses(host);
-        if (addresses == null) {
+        if (addresses == null) {    // 若无缓存，当前线程将变成域名的首解析线程
             synchronized (lookupTable) {
                 lookupTable.put(host, null);
                 return null;

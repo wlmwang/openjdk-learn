@@ -40,6 +40,10 @@ import sun.net.ConnectionResetException;
  * @author      Jonathan Payne
  * @author      Arthur van Hoff
  */
+// 套接字的输入流（读取）。是一个字节流、节点流
+// 注：不提供"标记/重置"的支持（回退特性）；直接|IO|支持，底层的|flush()|为空操作
+// 注：字节流，即以|8bit|（|1byte=8bit|）作为一个数据单元。数据流中最小的数据单元是字节
+// 注：根据是否直接处理数据，|IO|分为节点流和处理流。节点流是真正直接处理数据的；处理流是装饰加工节点流的
 class SocketInputStream extends FileInputStream
 {
     static {
@@ -91,6 +95,16 @@ class SocketInputStream extends FileInputStream
      *          returned when the end of the stream is reached.
      * @exception IOException If an I/O error has occurred.
      */
+    // 在|OS|层从套接字中读取最大长度为|len|的数据。该方法会一直阻塞，直到数据可读、超时、关闭、或异常
+    // 注：若设置了|timeout|超时限制，在超时前仍不可读，将会抛出|SocketTimeoutException|异常
+    // 注：底层使用|poll(&pfd, 1, timeout)|实现超时并监听套接字可读，其中|pfd.events=POLLIN|POLLERR|
+    // 注：底层使用|recv(fd, bufP, len, 0)|接收数据，返回实际读取的字节数；若为|0|，则表示套接字对端已被
+    // 关闭；若为|-1|，则表示流发生了错误（会抛出异常）
+    // 注：对一个已经接收到|RST|报文的套接字，读取数据，将抛出|ConnectionResetException|异常。接收|RST|报文场景有：
+    // 1.若在发送数据过程中对端的套接字中断了，这将会导致发送端的|write|先返回已发送的字节数，再次|write|时立即返回|-1|，
+    // 同时错误码为|ECONNRESET|。这通常出现在发送端发送数据时，对方将接收进程退出了。即，写入数据过程中收到|RST|报文
+    // 2.向一个对端已经中断的套接字中|write|数据，系统内核会先触发|SIGPIPE|信号处理函数，而后返回|-1|，同时将错误码置
+    // 为|EPIPE|。这通常出现在发送端发送数据前，对方将接收进程退出了。即，向一个已经收到|RST|报文的套接字中写入数据
     private native int socketRead0(FileDescriptor fd,
                                    byte b[], int off, int len,
                                    int timeout)
@@ -109,6 +123,8 @@ class SocketInputStream extends FileInputStream
      *          returned when the end of the stream is reached.
      * @exception IOException If an I/O error has occurred.
      */
+    // 在|OS|层从套接字中读取最大长度为|len|的数据。该方法会一直阻塞，直到数据可读、超时、关闭、或异常
+    // 注：返回实际读取的字节数；若为|0|，则表示套接字对端已被关闭；若为|-1|，则表示流发生了错误（会抛出异常）
     private int socketRead(FileDescriptor fd,
                            byte b[], int off, int len,
                            int timeout)
@@ -123,6 +139,9 @@ class SocketInputStream extends FileInputStream
      *          returned when the end of the stream is reached.
      * @exception IOException If an I/O error has occurred.
      */
+    // 从输入流中读取最多|b.length|个字节的数据到一个字节数组|b|中。此方法会阻塞，直到输入可用、被关闭或者
+    // 超时（如果设置的话）
+    // 注：返回实际读取的字节数；若为|-1|，则表示已经读取到流末尾
     public int read(byte b[]) throws IOException {
         return read(b, 0, b.length);
     }
@@ -137,10 +156,17 @@ class SocketInputStream extends FileInputStream
      *          returned when the end of the stream is reached.
      * @exception IOException If an I/O error has occurred.
      */
+    // 从输入流中读取最多|length|个字节的数据到一个字节数组|b[off:off+length]|中。如果|length|不为零，
+    // 则该方法将阻塞，直到输入可用、被关闭或者超时（如果设置的话）；如果|length|为零，返回将立即返回零
+    // 注：底层会自动进行数组|b|是否越界校验，即，方法可能会抛出|IndexOutOfBoundsException|
+    // 注：返回实际读取的字节数；若为|-1|，则表示已经读取到流末尾（套接字对端已被关闭）
     public int read(byte b[], int off, int length) throws IOException {
         return read(b, off, length, impl.getTimeout());
     }
 
+    // 从输入流中读取最多|length|个字节的数据到一个字节数组|b[off:off+length]|中。如果|length|不为零，
+    // 则该方法将阻塞，直到输入可用、被关闭或者超时（如果设置的话）；如果|length|为零，返回将立即返回零
+    // 注：返回实际读取的字节数；若为|-1|，则表示已经读取到流末尾（套接字对端已被关闭）
     int read(byte b[], int off, int length, int timeout) throws IOException {
         int n;
 
@@ -150,11 +176,13 @@ class SocketInputStream extends FileInputStream
         }
 
         // connection reset
+        // 连接被重置，立即抛出异常
         if (impl.isConnectionReset()) {
             throw new SocketException("Connection reset");
         }
 
         // bounds check
+        // 数组|b|是否越界校验
         if (length <= 0 || off < 0 || off + length > b.length) {
             if (length == 0) {
                 return 0;
@@ -165,13 +193,19 @@ class SocketInputStream extends FileInputStream
         boolean gotReset = false;
 
         // acquire file descriptor and do the read
+        // 自增"正在使用文件描述符"计数器
         FileDescriptor fd = impl.acquireFD();
         try {
             n = socketRead(fd, b, off, length, timeout);
+
+            // 返回实际读取的字节数；若为|0|，则表示套接字对端已被关闭；若为|-1|，则表示流发生了错误（会抛出异常）
             if (n > 0) {
                 return n;
             }
         } catch (ConnectionResetException rstExc) {
+            // 对一个已经接收到|RST|报文的套接字，读取数据
+            // 注：对一个已经接收到|RST|报文的套接字，第一次执行|recv|将返回|-1|，同时错误码为|ECONNRESET|；若
+            // 再次|recv|将返回|-1|，同时错误码为|EPIPE|，并且系统内核会触发|SIGPIPE|信号
             gotReset = true;
         } finally {
             impl.releaseFD();
@@ -185,6 +219,9 @@ class SocketInputStream extends FileInputStream
             impl.setConnectionResetPending();
             impl.acquireFD();
             try {
+                // 对一个已经接收到|RST|报文的套接字，读取数据
+                // 注：对一个已经接收到|RST|报文的套接字，第一次执行|recv|将返回|-1|，同时错误码为|ECONNRESET|；若
+                // 再次|recv|将返回|-1|，同时错误码为|EPIPE|，并且系统内核会触发|SIGPIPE|信号
                 n = socketRead(fd, b, off, length, timeout);
                 if (n > 0) {
                     return n;
@@ -215,6 +252,8 @@ class SocketInputStream extends FileInputStream
     /**
      * Reads a single byte from the socket.
      */
+    // 从输入流中读取下一个字节的数据，以|0~255|范围内的|int|值形式返回。如果已到达流末尾而没有
+    // 可用字节，则返回值|-1|。此方法会阻塞，直到输入数据可用、检测到流结束（关闭）或抛出异常为止
     public int read() throws IOException {
         if (eof) {
             return -1;
@@ -233,11 +272,14 @@ class SocketInputStream extends FileInputStream
      * @return  the actual number of bytes skipped.
      * @exception IOException If an I/O error has occurred.
      */
+    // 从输入流中跳过并丢弃|n|个字节的数据。当|numbytes<=0|时，无任何副作用，并立即返回|0|
     public long skip(long numbytes) throws IOException {
         if (numbytes <= 0) {
             return 0;
         }
         long n = numbytes;
+
+        // 单次|read()|系统调用最多跳过|1024|字节的数据
         int buflen = (int) Math.min(1024, n);
         byte data[] = new byte[buflen];
         while (n > 0) {
@@ -254,6 +296,7 @@ class SocketInputStream extends FileInputStream
      * Returns the number of bytes that can be read without blocking.
      * @return the number of immediately available bytes
      */
+    // 返回可以从此输入流读取或跳过的剩余字节数的估计值，而不会使下一次读取或跳过这么多字节时被阻塞
     public int available() throws IOException {
         return impl.available();
     }

@@ -38,6 +38,7 @@ package java.net;
  * @see java.net.ServerSocket
  * @since 1.4
  */
+// 抽象网络套接字地址类。目前只有一个实现类|InetSocketAddress|
 public abstract class SocketAddress implements java.io.Serializable {
 
     static final long serialVersionUID = 5215720748342549866L;

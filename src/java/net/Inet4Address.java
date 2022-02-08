@@ -109,6 +109,8 @@ class Inet4Address extends InetAddress {
         holder().hostName = hostName;
         holder().family = IPv4;
         if (addr != null) {
+            // 将|IP|地址的字节数组转换成整型
+            // 注：此处算法本质上，就是把字节数组按大端序转换成整型
             if (addr.length == INADDRSZ) {
                 int address  = addr[3] & 0xFF;
                 address |= ((addr[2] << 8) & 0xFF00);
@@ -322,6 +324,7 @@ class Inet4Address extends InetAddress {
      * @return  the raw IP address in a string format.
      * @since   JDK1.0.2
      */
+    // 将网络地址转换为字符串格式返回
     public String getHostAddress() {
         return numericToTextFormat(getAddress());
     }
@@ -366,6 +369,7 @@ class Inet4Address extends InetAddress {
      * @since 1.4
      */
 
+    // 将网络地址转换为字符串格式返回
     static String numericToTextFormat(byte[] src)
     {
         return (src[0] & 0xff) + "." + (src[1] & 0xff) + "." + (src[2] & 0xff) + "." + (src[3] & 0xff);

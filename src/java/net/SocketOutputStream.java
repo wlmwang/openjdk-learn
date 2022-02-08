@@ -38,6 +38,10 @@ import java.nio.channels.FileChannel;
  * @author      Jonathan Payne
  * @author      Arthur van Hoff
  */
+// 套接字的输出流（写入）。是一个字节流、节点流
+// 注：不提供"标记/重置"的支持（回退特性）；直接|IO|支持，底层的|flush()|为空操作
+// 注：字节流，即以|8bit|（|1byte=8bit|）作为一个数据单元。数据流中最小的数据单元是字节
+// 注：根据是否直接处理数据，|IO|分为节点流和处理流。节点流是真正直接处理数据的；处理流是装饰加工节点流的
 class SocketOutputStream extends FileOutputStream
 {
     static {
@@ -84,6 +88,14 @@ class SocketOutputStream extends FileOutputStream
      * @param len the number of bytes that are written
      * @exception IOException If an I/O error has occurred.
      */
+    // 将字节数组|b[off:off+len]|写入到|fd|输出流中。如果|len|不为零，则该方法将阻塞，直到输出可用或者被关闭；如
+    // 果|len|为零，方法将立即返回
+    // 注：底层会自动进行数组|b|是否越界校验，即，方法可能会抛出|IndexOutOfBoundsException|
+    // 注：对一个套接字写入数据过程中收到了|RST|报文，将抛出|ConnectionResetException|异常。接收|RST|报文场景有：
+    // 1.若在发送数据过程中对端的套接字中断了，这将会导致发送端的|write|先返回已发送的字节数，再次|write|时立即返回|-1|，
+    // 同时错误码为|ECONNRESET|。这通常出现在发送端发送数据时，对方将接收进程退出了。即，写入数据过程中收到|RST|报文
+    // 2.向一个对端已经中断的套接字中|write|数据，系统内核会先触发|SIGPIPE|信号处理函数，而后返回|-1|，同时将错误码置
+    // 为|EPIPE|。这通常出现在发送端发送数据前，对方将接收进程退出了。即，向一个已经收到|RST|报文的套接字中写入数据
     private native void socketWrite0(FileDescriptor fd, byte[] b, int off,
                                      int len) throws IOException;
 
@@ -95,6 +107,9 @@ class SocketOutputStream extends FileOutputStream
      * @param len the number of bytes that are written
      * @exception IOException If an I/O error has occurred.
      */
+    // 将字节数组|b[off:off+len]|写入到输出流中。如果|len|不为零，则该方法将阻塞，直到输出可用或者被关闭；如
+    // 果|len|为零，方法将立即返回
+    // 注：底层会自动进行数组|b|是否越界校验，即，方法可能会抛出|IndexOutOfBoundsException|
     private void socketWrite(byte b[], int off, int len) throws IOException {
 
         if (len <= 0 || off < 0 || off + len > b.length) {
@@ -109,6 +124,9 @@ class SocketOutputStream extends FileOutputStream
             socketWrite0(fd, b, off, len);
         } catch (SocketException se) {
             if (se instanceof sun.net.ConnectionResetException) {
+                // 对一个套接字写入数据过程中收到了|RST|报文
+                // 注：若在发送数据过程中对端的套接字中断了，这将会导致发送端的|write|先返回已发送的字节数，再
+                // 次|write|时立即返回|-1|，同时错误码为|ECONNRESET|
                 impl.setConnectionResetPending();
                 se = new SocketException("Connection reset");
             }
@@ -127,6 +145,8 @@ class SocketOutputStream extends FileOutputStream
      * @param b the data to be written
      * @exception IOException If an I/O error has occurred.
      */
+    // 将指定的字节写入输出流。要写入的字节是参数|b|的低|8|位，|b|的高|24|位被忽略。如果发
+    // 生|I/O|错误，特别是，如果输出流已关闭，则可能会抛出|IOException|
     public void write(int b) throws IOException {
         temp[0] = (byte)b;
         socketWrite(temp, 0, 1);
@@ -137,6 +157,7 @@ class SocketOutputStream extends FileOutputStream
      * @param b the data to be written
      * @exception SocketException If an I/O error has occurred.
      */
+    // 将字节数组|b|写入到输出流。此方法会阻塞，直到输入可用或者被关闭
     public void write(byte b[]) throws IOException {
         socketWrite(b, 0, b.length);
     }
@@ -149,6 +170,9 @@ class SocketOutputStream extends FileOutputStream
      * @param len the number of bytes that are written
      * @exception SocketException If an I/O error has occurred.
      */
+    // 将字节数组|b[off:off+len]|写入到输出流中。如果|len|不为零，则该方法将阻塞，直到输出可用或者被关闭；如
+    // 果|len|为零，方法将立即返回
+    // 注：底层会自动进行数组|b|是否越界校验，即，方法可能会抛出|IndexOutOfBoundsException|
     public void write(byte b[], int off, int len) throws IOException {
         socketWrite(b, off, len);
     }

@@ -48,19 +48,27 @@ import java.security.PrivilegedExceptionAction;
  * @see     java.nio.channels.ServerSocketChannel
  * @since   JDK1.0
  */
+// 服务端套接字。主要用来操作服务端套接字的绑定、监听、和接收客户端套接字的工作
+// 注：本类将套接字实现的细节委托至|SocketImpl|类。对外提供一个简洁的服务端套接字视图
 public
 class ServerSocket implements java.io.Closeable {
     /**
      * Various states of this socket.
      */
+    // 服务端套接字已创建标志位。即，该套接字是否与|OS|层的网络套接字的描述符已完成了关联动作
     private boolean created = false;
+
+    // 服务端套接字已绑定标志位。即，该套接字关联的|OS|层的网络套接字的描述符已完成了绑定动作
     private boolean bound = false;
+
+    // 服务端套接字已关闭标志位。即，该套接字关联的|OS|层的网络套接字的描述符已完成了关闭动作
     private boolean closed = false;
     private Object closeLock = new Object();
 
     /**
      * The implementation of this Socket.
      */
+    // 服务端套接字具体实现对象
     private SocketImpl impl;
 
     /**
@@ -124,6 +132,12 @@ class ServerSocket implements java.io.Closeable {
      * @see        java.net.ServerSocket#setSocketFactory(java.net.SocketImplFactory)
      * @see        SecurityManager#checkListen
      */
+    // 创建一个指定端口、不限网络地址的服务端套接字。其最大挂起连接数为|50|
+    // 注：若端口是|0|，则表示自动分配（通常是临时端口）；可以通过|getLocalPort()|获取此端口
+    // 注：若等待连接的客户端数量超过了最大连接队列的长度时，则拒绝连接。最大连接限制包括半连接和全连
+    // 接。半连接：服务端处于|Listen|状态时，收到客户端|SYN|报文，会将其放入半连接队列中，并且从服
+    // 务端|SYN+ACK|响应客户端后，到客户端|ACK|报文到达服务端之前，该套接字将一直保留在半连接队列
+    // 中。全连接：当服务端接收到客户端|ACK|报文后，该条目将从半连接队列搬到全连接队列尾部
     public ServerSocket(int port) throws IOException {
         this(port, 50, null);
     }
@@ -177,6 +191,12 @@ class ServerSocket implements java.io.Closeable {
      * @see        java.net.ServerSocket#setSocketFactory(java.net.SocketImplFactory)
      * @see        SecurityManager#checkListen
      */
+    // 创建一个指定端口、不限网络地址的服务端套接字。其最大挂起连接数为|backlog|
+    // 注：若端口是|0|，则表示自动分配（通常是临时端口）；可以通过|getLocalPort()|获取此端口
+    // 注：若等待连接的客户端数量超过了最大连接队列的长度时，则拒绝连接。最大连接限制包括半连接和全连
+    // 接。半连接：服务端处于|Listen|状态时，收到客户端|SYN|报文，会将其放入半连接队列中，并且从服
+    // 务端|SYN+ACK|响应客户端后，到客户端|ACK|报文到达服务端之前，该套接字将一直保留在半连接队列
+    // 中。全连接：当服务端接收到客户端|ACK|报文后，该条目将从半连接队列搬到全连接队列尾部
     public ServerSocket(int port, int backlog) throws IOException {
         this(port, backlog, null);
     }
@@ -226,14 +246,28 @@ class ServerSocket implements java.io.Closeable {
      * @see SecurityManager#checkListen
      * @since   JDK1.1
      */
+    // 创建一个指定端口、指定网络地址的服务端套接字。其最大挂起连接数为|backlog|
+    // 注：若端口是|0|，则表示自动分配（通常是临时端口）；可以通过|getLocalPort()|获取此端口
+    // 注：若网络地址是|null|，则表示为不限网络地址；可以通过|getInetAddress()|获取此地址
+    // 注：若等待连接的客户端数量超过了最大连接队列的长度时，则拒绝连接。最大连接限制包括半连接和全连
+    // 接。半连接：服务端处于|Listen|状态时，收到客户端|SYN|报文，会将其放入半连接队列中，并且从服
+    // 务端|SYN+ACK|响应客户端后，到客户端|ACK|报文到达服务端之前，该套接字将一直保留在半连接队列
+    // 中。全连接：当服务端接收到客户端|ACK|报文后，该条目将从半连接队列搬到全连接队列尾部
+    // 亮点：封装了经典服务端编程的三步骤：|socket()|, |bind()|, |listen()|
     public ServerSocket(int port, int backlog, InetAddress bindAddr) throws IOException {
+        // 创建、设置服务端套接字具体实现对象
         setImpl();
+
+        // 端口参数校验
         if (port < 0 || port > 0xFFFF)
             throw new IllegalArgumentException(
                        "Port value out of range: " + port);
+
+        // 最大挂起连接数校对
         if (backlog < 1)
           backlog = 50;
         try {
+            // 将套接字与网络地址、端口号进行绑定、并设置为监听状态套接字，以及设置套接字已绑定标志位
             bind(new InetSocketAddress(bindAddr, port), backlog);
         } catch(SecurityException e) {
             close();
@@ -252,6 +286,8 @@ class ServerSocket implements java.io.Closeable {
      * @throws SocketException if creation fails.
      * @since 1.4
      */
+    // 获取服务端套接字的具体传输协议实现的对象
+    // 注：第一次调用时，将会自动创建该实现对象，并将其与|OS|层的网络套接字描述符进行绑定
     SocketImpl getImpl() throws SocketException {
         if (!created)
             createImpl();
@@ -278,6 +314,7 @@ class ServerSocket implements java.io.Closeable {
         }
     }
 
+    // 创建、设置服务端套接字具体实现对象
     private void setImpl() {
         if (factory != null) {
             impl = factory.createSocketImpl();
@@ -285,8 +322,12 @@ class ServerSocket implements java.io.Closeable {
         } else {
             // No need to do a checkOldImpl() here, we know it's an up to date
             // SocketImpl!
+            // 创建一个普通套接字具体传输协议实现的对象
             impl = new SocksSocketImpl();
         }
+
+        // 设置套接字具体实现对象，将其与服务端套接字对象进行绑定
+        // 注：可以将该套接字的实现对象标识为服务端类型
         if (impl != null)
             impl.setServerSocket(this);
     }
@@ -297,9 +338,14 @@ class ServerSocket implements java.io.Closeable {
      * @throws IOException if creation fails
      * @since 1.4
      */
+    // 创建服务端套接字具体实现对象，并设置套接字已创建标志位
+    // 注：第一次调用时，将会自动创建该实现对象，并将其与|OS|层的网络套接字描述符进行绑定
     void createImpl() throws SocketException {
+        // 创建、设置服务端套接字具体实现对象
         if (impl == null)
             setImpl();
+
+        // 在|OS|层创建一个流类型网络套接字（|TCP|类型），并将描述符设置到|fd.fd|字段上
         try {
             impl.create(true);
             created = true;
@@ -354,25 +400,45 @@ class ServerSocket implements java.io.Closeable {
      *          SocketAddress subclass not supported by this socket
      * @since 1.4
      */
+    // 将套接字与网络地址、端口号进行绑定、并设置为监听状态套接字，以及设置套接字已绑定标志位。其最大
+    // 挂起连接数为|backlog|
+    // 注：若网络套接字地址是|null|，则表示为不限网络地址、使用临时端口
+    // 注：若等待连接的客户端数量超过了最大连接队列的长度时，则拒绝连接。最大连接限制包括半连接和全连
+    // 接。半连接：服务端处于|Listen|状态时，收到客户端|SYN|报文，会将其放入半连接队列中，并且从服
+    // 务端|SYN+ACK|响应客户端后，到客户端|ACK|报文到达服务端之前，该套接字将一直保留在半连接队列
+    // 中。全连接：当服务端接收到客户端|ACK|报文后，该条目将从半连接队列搬到全连接队列尾部
+    // 亮点：封装了经典服务端编程的三步骤的后两步：|bind()|, |listen()|
     public void bind(SocketAddress endpoint, int backlog) throws IOException {
+        // 当前套接字必须是未关闭、未绑定的
         if (isClosed())
             throw new SocketException("Socket is closed");
         if (!oldImpl && isBound())
             throw new SocketException("Already bound");
+
+        // 若网络套接字地址是|null|，则表示为不限网络地址、使用临时端口
         if (endpoint == null)
             endpoint = new InetSocketAddress(0);
         if (!(endpoint instanceof InetSocketAddress))
             throw new IllegalArgumentException("Unsupported address type");
+
+        // 该网络套接字地址（网络地址+端口号）必须已经解析
         InetSocketAddress epoint = (InetSocketAddress) endpoint;
         if (epoint.isUnresolved())
             throw new SocketException("Unresolved address");
+
+        // 最大挂起连接数校对
         if (backlog < 1)
           backlog = 50;
         try {
             SecurityManager security = System.getSecurityManager();
             if (security != null)
                 security.checkListen(epoint.getPort());
+
+            // 在|OS|层将套接字与网络地址、端口号进行绑定，并将地址设置到|address|、以及将
+            // 实际端口号设置到|localPort|上
             getImpl().bind(epoint.getAddress(), epoint.getPort());
+
+            // 在|OS|层将套接字设置为监听状态套接字，其最大挂起连接数为|backlog|
             getImpl().listen(backlog);
             bound = true;
         } catch(SecurityException e) {
@@ -402,16 +468,20 @@ class ServerSocket implements java.io.Closeable {
      *
      * @see SecurityManager#checkConnect
      */
+    // 创建服务端套接字时，传递的网络地址，此接口可获取该网络地址。即，获取服务器网络地址
+    // 注：当获取的网络地址没有连接权限时，返回本机回环地址。这使得获取的地址，可供客户端来连接本机
     public InetAddress getInetAddress() {
         if (!isBound())
             return null;
         try {
+            // 获取服务器网络地址，并检查其连接权限
             InetAddress in = getImpl().getInetAddress();
             SecurityManager sm = System.getSecurityManager();
             if (sm != null)
                 sm.checkConnect(in.getHostAddress(), -1);
             return in;
         } catch (SecurityException e) {
+            // 当获取的网络地址没有连接权限时，返回本机回环地址
             return InetAddress.getLoopbackAddress();
         } catch (SocketException e) {
             // nothing
@@ -431,6 +501,7 @@ class ServerSocket implements java.io.Closeable {
      * @return  the port number to which this socket is listening or
      *          -1 if the socket is not bound yet.
      */
+    // 创建服务端套接字时，若端口参数为|0|，则系统会自动分配一个临时端口，此接口可获取该端口
     public int getLocalPort() {
         if (!isBound())
             return -1;
@@ -469,7 +540,7 @@ class ServerSocket implements java.io.Closeable {
      * @see SecurityManager#checkConnect
      * @since 1.4
      */
-
+    // 获取当前服务器的监听的网络套接字地址
     public SocketAddress getLocalSocketAddress() {
         if (!isBound())
             return null;
@@ -504,12 +575,19 @@ class ServerSocket implements java.io.Closeable {
      * @revised 1.4
      * @spec JSR-51
      */
+    // 监听并接受一个客户端连接。该方法会一直阻塞，直到一个连接被创建并返回、或发现异常
+    // 注：若设置了|timeout|超时限制，在超时前仍未获得连接时，将抛出|SocketTimeoutException|异常
+    // 注：可以用|s.getInetAddress().getHostAddress(), s.getPort()|获取客户端套接字属性
     public Socket accept() throws IOException {
         if (isClosed())
             throw new SocketException("Socket is closed");
         if (!isBound())
             throw new SocketException("Socket is not bound yet");
+
+        // 创建一个套接字对象，用于存储接受到的客户端连接
         Socket s = new Socket((SocketImpl) null);
+
+        // 监听并接受一个客户端连接
         implAccept(s);
         return s;
     }
@@ -530,9 +608,11 @@ class ServerSocket implements java.io.Closeable {
      * @revised 1.4
      * @spec JSR-51
      */
+    // 监听并接受一个客户端连接。该方法会一直阻塞，直到一个连接被创建并被设置到|s|参数中、或发现异常
     protected final void implAccept(Socket s) throws IOException {
         SocketImpl si = null;
         try {
+            // 初始化客户端的套接字具体实现对象
             if (s.impl == null)
               s.setImpl();
             else {
@@ -540,8 +620,12 @@ class ServerSocket implements java.io.Closeable {
             }
             si = s.impl;
             s.impl = null;
+
+            // 初始化套接字的具体实现对象的网络地址、文件描述符字段
             si.address = new InetAddress();
             si.fd = new FileDescriptor();
+
+            // 监听并接受一个客户端连接。该方法会一直阻塞，直到一个连接被创建并设置到|si|参数中
             getImpl().accept(si);
 
             SecurityManager security = System.getSecurityManager();
@@ -561,6 +645,8 @@ class ServerSocket implements java.io.Closeable {
             throw e;
         }
         s.impl = si;
+
+        // 接受客户端连接的后置处理器
         s.postAccept();
     }
 
@@ -577,6 +663,8 @@ class ServerSocket implements java.io.Closeable {
      * @revised 1.4
      * @spec JSR-51
      */
+    // 关闭此套接字。当前在|accept()|中阻塞的任何线程都会抛出|SocketException|异常
+    // 注：如果此套接字具有关联的通道，则该通道也将关闭
     public void close() throws IOException {
         synchronized(closeLock) {
             if (isClosed())
@@ -646,6 +734,9 @@ class ServerSocket implements java.io.Closeable {
      * @since   JDK1.1
      * @see #getSoTimeout()
      */
+    // 开启、禁用|SO_TIMEOUT|套接字选项。当接受客户端|accept()|时，若超过了|timeout>0|（毫秒单
+    // 位）时间限制，则会抛出|SocketTimeoutException|异常
+    // 注：必须在进入阻塞操作之前启用该选项才能生效。超时必须大于零；若超时不大于零，则为无限超时
     public synchronized void setSoTimeout(int timeout) throws SocketException {
         if (isClosed())
             throw new SocketException("Socket is closed");
@@ -660,6 +751,7 @@ class ServerSocket implements java.io.Closeable {
      * @since   JDK1.1
      * @see #setSoTimeout(int)
      */
+    // 获取|SO_TIMEOUT|套接字选项的值
     public synchronized int getSoTimeout() throws IOException {
         if (isClosed())
             throw new SocketException("Socket is closed");
@@ -708,6 +800,12 @@ class ServerSocket implements java.io.Closeable {
      * @see #isBound()
      * @see #isClosed()
      */
+    // 开启、禁用|SO_REUSEADDR|套接字选项。当一个|TCP|连接关闭时，该连接可能会在连接关闭后的一段
+    // 时间内保持超时状态（通常称为|TIME_WAIT|状态或|2MSL|等待状态）。对于使用众所周知的套接字地
+    // 址或端口的应用程序，如果存在涉及套接字地址或端口的处于超时状态的连接，则可能无法将套接字再次绑
+    // 定到该套接字地址上。这可能会导致我们在关闭一个服务器进程后，不能立即重启该服务器进程
+    // 注：创建|ServerSocket|时，未定义|SO_REUSEADDR|的设置。可以使用|getReuseAddress()|来
+    // 获取。 不过从|PlainSocketImpl.socketCreate()|实现中看，服务端套接字默认配置了该选项
     public void setReuseAddress(boolean on) throws SocketException {
         if (isClosed())
             throw new SocketException("Socket is closed");
@@ -724,6 +822,7 @@ class ServerSocket implements java.io.Closeable {
      * @since   1.4
      * @see #setReuseAddress(boolean)
      */
+    // 获取|SO_REUSEADDR|套接字选项的值
     public boolean getReuseAddress() throws SocketException {
         if (isClosed())
             throw new SocketException("Socket is closed");
