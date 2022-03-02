@@ -371,6 +371,8 @@ class ServerSocket implements java.io.Closeable {
      *          SocketAddress subclass not supported by this socket
      * @since 1.4
      */
+    // 将套接字绑定到指定网络地址、端口上、并设置为监听状态套接字，以及设置套接字已绑定标志位。其最
+    // 大挂起连接数为|50|
     public void bind(SocketAddress endpoint) throws IOException {
         bind(endpoint, 50);
     }

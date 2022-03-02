@@ -523,16 +523,21 @@ public final class URL implements java.io.Serializable {
 
         try {
             limit = spec.length();
+            // 消除尾部的空白字符（|ASCII|不大于|32|的字符）
             while ((limit > 0) && (spec.charAt(limit - 1) <= ' ')) {
                 limit--;        //eliminate trailing whitespace
             }
+            // 消除头部的空白字符（|ASCII|不大于|32|的字符）
             while ((start < limit) && (spec.charAt(start) <= ' ')) {
                 start++;        // eliminate leading whitespace
             }
 
+            // 检查字符串，若请求地址以|url:|起始，则跳过该|url:|子字符串
             if (spec.regionMatches(true, start, "url:", 0, 4)) {
                 start += 4;
             }
+
+            // 若请求地址以"#"起始，将|aRef|置位
             if (start < spec.length() && spec.charAt(start) == '#') {
                 /* we're assuming this is a ref relative to the context URL.
                  * This means protocols cannot start w/ '#', but we must parse
@@ -540,10 +545,13 @@ public final class URL implements java.io.Serializable {
                  */
                 aRef=true;
             }
+
+            // 若请求地址不是以"#"起始，遍历该地址，直到"/"字符或匹配到一个合法网络协议头时停止
             for (i = start ; !aRef && (i < limit) &&
                      ((c = spec.charAt(i)) != '/') ; i++) {
                 if (c == ':') {
-
+                    // 检查":"之前的地址字符串，若是一个合法的网络协议，将其赋值给|newProtocol|变量
+                    // 注：检查|s|字符串，是否是一个首字符为字母，其余字符为字母、数字、点号、加号或减号的字符串
                     String s = spec.substring(start, i).toLowerCase();
                     if (isValidProtocol(s)) {
                         newProtocol = s;
@@ -554,7 +562,11 @@ public final class URL implements java.io.Serializable {
             }
 
             // Only use our context if the protocols match.
+            // 协议头|protocol|，是一个首字符为字母，其余字符为字母、数字、点号、加号或减号的字符串
             protocol = newProtocol;
+
+            // 若上下文参数|context|不为空，且请求地址中未检查到有网络协议头、或与上下文有相同的网络协议头
+            // 注：此时的请求地址为一个相对地址，其网络协议、主机、端口、路径都使用上下文参数|context|中的值
             if ((context != null) && ((newProtocol == null) ||
                             newProtocol.equalsIgnoreCase(context.protocol))) {
                 // inherit the protocol handler from the context
@@ -570,6 +582,7 @@ public final class URL implements java.io.Serializable {
                 if (context.path != null && context.path.startsWith("/"))
                     newProtocol = null;
 
+                // 请求地址中未检查到有网络协议头，使用上下文参数中的配置
                 if (newProtocol == null) {
                     protocol = context.protocol;
                     authority = context.authority;
@@ -578,10 +591,11 @@ public final class URL implements java.io.Serializable {
                     port = context.port;
                     file = context.file;
                     path = context.path;
-                    isRelative = true;
+                    isRelative = true;  // 置为相对地址标志位
                 }
             }
 
+            // 未检测到协议头，立即抛出格式错误|MalformedURLException|异常
             if (protocol == null) {
                 throw new MalformedURLException("no protocol: "+original);
             }
@@ -626,13 +640,19 @@ public final class URL implements java.io.Serializable {
     /*
      * Returns true if specified string is a valid protocol name.
      */
+    // 如果字符串|protocol|是一个有效的协议名称，返回|true|
+    // 注：协议头字符串必须是一个首字符为字母，其余字符为字母、数字、点号、加号或减号的字符串
     private boolean isValidProtocol(String protocol) {
         int len = protocol.length();
         if (len < 1)
             return false;
         char c = protocol.charAt(0);
+
+        // 首字符必须为字母
         if (!Character.isLetter(c))
             return false;
+
+        // 遍历除首字符的其余字符，若它不是一个字母、数字、点号、加号或减号，返回|false|
         for (int i = 1; i < len; i++) {
             c = protocol.charAt(i);
             if (!Character.isLetterOrDigit(c) && c != '.' && c != '+' &&

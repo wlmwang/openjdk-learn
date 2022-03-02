@@ -1329,6 +1329,9 @@ public final class String
      *          or case insensitive depends on the {@code ignoreCase}
      *          argument.
      */
+    // 字符串局部子串比较
+    // 若|value[toffset, toffset+len]|与|other.value[ooffset, ooffset+len]|字符序
+    // 列数组一一相等，返回|true|，否则返回|false|
     public boolean regionMatches(boolean ignoreCase, int toffset,
             String other, int ooffset, int len) {
         char ta[] = value;
@@ -1347,11 +1350,14 @@ public final class String
             if (c1 == c2) {
                 continue;
             }
+
+            // 忽略大小写
             if (ignoreCase) {
                 // If characters don't match but case may be ignored,
                 // try converting both characters to uppercase.
                 // If the results match, then the comparison scan should
                 // continue.
+                // 将字符都转换成大写字符再进行比较
                 char u1 = Character.toUpperCase(c1);
                 char u2 = Character.toUpperCase(c2);
                 if (u1 == u2) {
@@ -1361,6 +1367,8 @@ public final class String
                 // for the Georgian alphabet, which has strange rules about case
                 // conversion.  So we need to make one last check before
                 // exiting.
+                // 不幸的是，转换为大写字母不适用于格鲁吉亚|Georgian|字母，它有关于大小写转
+                // 换的奇怪规则，所以我们需要在退出前做最后一次检查
                 if (Character.toLowerCase(u1) == Character.toLowerCase(u2)) {
                     continue;
                 }

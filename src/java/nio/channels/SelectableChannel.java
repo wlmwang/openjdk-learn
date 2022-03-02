@@ -216,6 +216,8 @@ public abstract class SelectableChannel
      * @return  A key representing the registration of this channel with
      *          the given selector
      */
+    // 将当前套接字通道注册到指定的多路复用筛选器|sel|中，以监听该通道的|ops|事件。返回一个筛选器
+    // 令牌，该令牌中保存了套接字通道与多路复用筛选器的引用
     public abstract SelectionKey register(Selector sel, int ops, Object att)
         throws ClosedChannelException;
     //
@@ -274,6 +276,8 @@ public abstract class SelectableChannel
      * @return  A key representing the registration of this channel with
      *          the given selector
      */
+    // 将当前套接字通道注册到指定的多路复用筛选器|sel|中，以监听该通道的|ops|事件。返回一个筛选器
+    // 令牌，该令牌中保存了套接字通道与多路复用筛选器的引用
     public final SelectionKey register(Selector sel, int ops)
         throws ClosedChannelException
     {

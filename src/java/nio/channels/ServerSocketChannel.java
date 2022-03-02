@@ -71,6 +71,10 @@ import java.nio.channels.spi.SelectorProvider;
  * @since 1.4
  */
 
+// 封装一个服务器套接字，在其之上新增|IO|事件的抽象，用于将套接字能够注册至多路复用筛选器中，并进行
+// 监听指定|IO|事件
+// 注：实现类状态字段|ServerSocketChannelImpl.state|是一个枚举值，其中|-1|为未初始化；|0|为
+// 已初始化；|1|为已关闭（执行了系统调用|close()|方法）
 public abstract class ServerSocketChannel
     extends AbstractSelectableChannel
     implements NetworkChannel
@@ -104,6 +108,9 @@ public abstract class ServerSocketChannel
      * @throws  IOException
      *          If an I/O error occurs
      */
+    // 创建一个服务器套接字通道。该通道是通过调用系统默认|SelectorProvider|对象创建的，并且该
+    // 通道的套接字最初是未绑定的。在接收连接之前，必须通过其套接字的绑定方法绑定一个特定地址
+    // 注：默认的多路复用提供者对象，如|EPollSelectorProvider/PollSelectorProvider|
     public static ServerSocketChannel open() throws IOException {
         return SelectorProvider.provider().openServerSocketChannel();
     }
@@ -118,6 +125,7 @@ public abstract class ServerSocketChannel
      *
      * @return  The valid-operation set
      */
+    // 服务器套接字通道所支持的|IO|事件
     public final int validOps() {
         return SelectionKey.OP_ACCEPT;
     }
@@ -217,6 +225,9 @@ public abstract class ServerSocketChannel
      *
      * @return  A server socket associated with this channel
      */
+    // 获取当前服务器通道关联的服务器套接字。即，返回实例化|ServerSocketAdaptor|对象
+    // 注：|ServerSocketAdaptor|类是一个适配器类，它重写了|ServerSocket|中的关键方法，用于将
+    // 其代理至当前服务器套接字通道类中|bind(), accept()|实现
     public abstract ServerSocket socket();
 
     /**

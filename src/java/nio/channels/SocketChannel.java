@@ -113,6 +113,11 @@ import java.nio.channels.spi.SelectorProvider;
  * @since 1.4
  */
 
+// 封装一个客户端套接字，在其之上新增|IO|事件的抽象，用于将套接字能够注册至多路复用筛选器中，并进行
+// 监听指定|IO|事件
+// 注：实现类状态字段|SocketChannelImpl.state|是一个枚举值，其中|-1|为未初始化；|0|为已初始化、
+// 未连接；|1|非阻塞模式下，正在连接中；|2|为已连接；|3|为预关闭（正在关闭）；|4|为已关闭（执行了系
+// 统调用|close()|方法）
 public abstract class SocketChannel
     extends AbstractSelectableChannel
     implements ByteChannel, ScatteringByteChannel, GatheringByteChannel, NetworkChannel
@@ -210,6 +215,7 @@ public abstract class SocketChannel
      *
      * @return  The valid-operation set
      */
+    // 客户端套接字通道所支持的|IO|事件
     public final int validOps() {
         return (SelectionKey.OP_READ
                 | SelectionKey.OP_WRITE
@@ -386,6 +392,10 @@ public abstract class SocketChannel
      * @throws  IOException
      *          If some other I/O error occurs
      */
+    // 连接到指定的套接字地址上
+    // 1.如果当前通道处于非阻塞模式，则此方法的调用将会启动非阻塞连接流程：若连接立即建立，则方法
+    // 返回|true|；否则方法返回|false|，并且稍后必须再调用|finishConnect()|完成连接
+    // 2.如果当前通道处于阻塞模式，则此方法的调用将被会阻塞，直到连接建立或发生|I/O|错误
     public abstract boolean connect(SocketAddress remote) throws IOException;
 
     /**
@@ -437,6 +447,11 @@ public abstract class SocketChannel
      * @throws  IOException
      *          If some other I/O error occurs
      */
+    // 完成最终的连接操作
+    // 1.如果当前通道处于非阻塞模式，在调用|connect()|连接方法后，若连接立即建立，则方法返回|true|，
+    // 否则方法返回|false|
+    // 2.如果当前通道处于阻塞模式，在调用|connect()|连接方法后，并且连接尚未完成，则此方法的调用将被
+    // 会阻塞，直到连接建立或发生|I/O|错误
     public abstract boolean finishConnect() throws IOException;
 
     /**

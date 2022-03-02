@@ -70,6 +70,7 @@ public abstract class AbstractSelector
     extends Selector
 {
 
+    // 初始化当前筛选器为打开状态
     private AtomicBoolean selectorOpen = new AtomicBoolean(true);
 
     // The provider that created this selector
@@ -85,8 +86,10 @@ public abstract class AbstractSelector
         this.provider = provider;
     }
 
+    // 已经被取消的筛选器令牌集合
     private final Set<SelectionKey> cancelledKeys = new HashSet<SelectionKey>();
 
+    // 取消当前的筛选器令牌
     void cancel(SelectionKey k) {                       // package-private
         synchronized (cancelledKeys) {
             cancelledKeys.add(k);
@@ -129,6 +132,7 @@ public abstract class AbstractSelector
      */
     protected abstract void implCloseSelector() throws IOException;
 
+    // 获取当前筛选器是否处于打开状态
     public final boolean isOpen() {
         return selectorOpen.get();
     }
@@ -172,6 +176,8 @@ public abstract class AbstractSelector
      * @return  A new key representing the registration of the given channel
      *          with this selector
      */
+    // 将指定的套接字通道注册到当前多路复用筛选器中，以监听该通道的|ops|事件。返回一个筛选器
+    // 令牌，该令牌中保存了套接字通道与多路复用筛选器的引用
     protected abstract SelectionKey register(AbstractSelectableChannel ch,
                                              int ops, Object att);
 
@@ -206,14 +212,20 @@ public abstract class AbstractSelector
      * Thread#interrupt interrupt} method is invoked while the thread is
      * blocked in an I/O operation upon the selector.  </p>
      */
+    // 标记一个可能无限期阻塞|I/O|的开始。此方法应与|end()|方法一起调用，以实现筛选器中断可响应
+    // 注：本质上，此处仅仅是注册一个当前线程中断时，可自动调用的钩子方法
     protected final void begin() {
         if (interruptor == null) {
             interruptor = new Interruptible() {
                     public void interrupt(Thread ignore) {
+                        // 唤醒多路复用筛选器，以唤醒阻塞的线程
                         AbstractSelector.this.wakeup();
                     }};
         }
+        // 设置线程中断的钩子方法。即，当线程中断时，自动执行|interruptor.interrupt()|方法
         AbstractInterruptibleChannel.blockedOn(interruptor);
+
+        // 在标记时，当前线程已经被中断，立即执行中断方法
         Thread me = Thread.currentThread();
         if (me.isInterrupted())
             interruptor.interrupt(me);
@@ -227,7 +239,9 @@ public abstract class AbstractSelector
      * shown <a href="#be">above</a>, in order to implement interruption for
      * this selector.  </p>
      */
+    // 标记一个可能无限期阻塞|I/O|的结束。此方法应与|begin()|方法一起调用，以实现筛选器中断可响应
     protected final void end() {
+        // 清除线程中断的钩子方法
         AbstractInterruptibleChannel.blockedOn(null);
     }
 

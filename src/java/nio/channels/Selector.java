@@ -203,6 +203,8 @@ import java.util.Set;
  * @see SelectionKey
  */
 
+// 多路复用筛选器，用于筛选、监听套接字通道|SelectableChannel|的|IO|事件
+// 注：筛选器保持打开状态，直到通过其|close()|方法关闭
 public abstract class Selector implements Closeable {
 
     /**
@@ -223,6 +225,9 @@ public abstract class Selector implements Closeable {
      * @throws  IOException
      *          If an I/O error occurs
      */
+    // 创建一个多路复用筛选器。该筛选器是通过调用系统默认|SelectorProvider|对象创建的，并且该
+    // 筛选器保持打开状态，直到通过其|close()|方法关闭
+    // 注：默认的多路复用提供者对象，如|EPollSelectorProvider/PollSelectorProvider|
     public static Selector open() throws IOException {
         return SelectorProvider.provider().openSelector();
     }
@@ -232,6 +237,7 @@ public abstract class Selector implements Closeable {
      *
      * @return <tt>true</tt> if, and only if, this selector is open
      */
+    // 获取当前筛选器是否打开
     public abstract boolean isOpen();
 
     /**
@@ -326,6 +332,10 @@ public abstract class Selector implements Closeable {
      * @throws  IllegalArgumentException
      *          If the value of the timeout argument is negative
      */
+    // 筛选获取一组筛选器令牌，其对应的通道已准备好（触发了指定事件）进行|I/O|操作
+    // 注：此方法为阻塞筛选操作。只有在至少有一个通道触了发事件、当前线程被中断或给定的超时期限到期
+    // 后，才会返回
+    // 注：若|timeout>0|，则等待通道事件时，最多阻塞|timeout|毫秒；若为零，则无限期阻塞；不能为负
     public abstract int select(long timeout)
         throws IOException;
 
@@ -368,6 +378,7 @@ public abstract class Selector implements Closeable {
      *
      * @return  This selector
      */
+    // 底层使用|write(fd, fakebuf, 1)|唤醒，|fd|为管道对的写入端，|int fakebuf[1]={1}|
     public abstract Selector wakeup();
 
     /**

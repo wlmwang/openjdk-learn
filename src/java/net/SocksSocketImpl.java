@@ -40,12 +40,26 @@ import sun.net.www.ParseUtil;
  * Note this class should <b>NOT</b> be public.
  */
 
+// |SOCKS|是一种网络传输协议，位于会话层，主要用于客户端与外网服务器之间的中间传输。即，当一个客户
+// 端需要穿过防火墙访问服务器时，可能需要先跟|SOCKS|代理服务器进行连接，然后由这个代理服务器控制该
+// 客户端的访问
+// 注：|SOCKS|使用握手协议来通知代理软件其客户端试图进行的|SOCKS|连接，然后尽可能透明地进行操作，
+// 而常规代理可能会解释和重写报头（例如|FTP|；不过|HTTP|代理只是将请求转发到目标|HTTP|服务器）。
+// 虽然|HTTP|代理有不同的使用模式，|HTTP CONNECT|方法允许转发|TCP|连接；然而，|SOCKS|代理还可
+// 以转发|UDP|流量（仅|SOCKS5|），而|HTTP|代理不能。|HTTP|代理通常更了解|HTTP|协议，执行更高层
+// 次的过滤（虽然通常只用于|GET|和|POST|方法，而不用于|CONNECT|方法）
 class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
+    // 代理服务器的域名或字符形式地址
     private String server = null;
+    // 代理服务器端口
     private int serverPort = DEFAULT_PORT;
+
+    // 使用|SOCKS|代理服务器时，需要连接的外网服务器的套接字地址
     private InetSocketAddress external_address;
     private boolean useV4 = false;
     private Socket cmdsock = null;
+
+    // 本机与|SOCKS|代理服务器连接的套接字输入、输出流
     private InputStream cmdIn = null;
     private OutputStream cmdOut = null;
     /* true if the Proxy has been set programatically */
@@ -75,6 +89,7 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
         useV4 = true;
     }
 
+    // 本地与代理服务器间建立连接
     private synchronized void privilegedConnect(final String host,
                                               final int port,
                                               final int timeout)
@@ -95,6 +110,7 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
         }
     }
 
+    // 本地与代理服务器间建立|TCP|原生连接
     private void superConnectServer(String host, int port,
                                     int timeout) throws IOException {
         super.connect(new InetSocketAddress(host, port), timeout);
@@ -115,6 +131,7 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
         return readSocksReply(in, data, 0L);
     }
 
+    // 从代理服务器中读取返回的|TCP|信息
     private int readSocksReply(InputStream in, byte[] data, long deadlineMillis) throws IOException {
         int len = data.length;
         int received = 0;
@@ -258,6 +275,7 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
         return false;
     }
 
+    // 按照|SOCKS V4|协议，请求代理服务器和目标服务器间建立连接
     private void connectV4(InputStream in, OutputStream out,
                            InetSocketAddress endpoint,
                            long deadlineMillis) throws IOException {
@@ -323,6 +341,10 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
      * @throws  IllegalArgumentException if endpoint is null or a
      *          SocketAddress subclass not supported by this socket
      */
+    // 连接到指定的服务端的套接字地址上。该方法会一直阻塞，直到连接被建立、超时或发生异常
+    // 注：若配置了|SOCKS|代理服务器，则将首先连接到|SOCKS|代理并协商访问，如果代理授予连接，则连
+    // 接成功，所有进一步的流量都将有该代理服务器转到目标服务器；否则，将使用|PlainSocketImpl|类
+    // 的原生|TCP|进行连接
     @Override
     protected void connect(SocketAddress endpoint, int timeout) throws IOException {
         final long deadlineMillis;
@@ -337,6 +359,8 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
         SecurityManager security = System.getSecurityManager();
         if (endpoint == null || !(endpoint instanceof InetSocketAddress))
             throw new IllegalArgumentException("Unsupported address type");
+
+        // 检查连接权限
         InetSocketAddress epoint = (InetSocketAddress) endpoint;
         if (security != null) {
             if (epoint.isUnresolved())
@@ -346,16 +370,20 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
                 security.checkConnect(epoint.getAddress().getHostAddress(),
                                       epoint.getPort());
         }
-        if (server == null) {
+
+        if (server == null) {   // 未指定|SOCKS|代理服务器
             // This is the general case
             // server is not null only when the socket was created with a
             // specified proxy in which case it does bypass the ProxySelector
+            // 再查询|SOCKS|代理服务选择器
             ProxySelector sel = java.security.AccessController.doPrivileged(
                 new java.security.PrivilegedAction<ProxySelector>() {
                     public ProxySelector run() {
                             return ProxySelector.getDefault();
                         }
                     });
+
+            // 若选择器中也没有|SOCKS|代理服务器，则使用|PlainSocketImpl|类的原生|TCP|进行连接
             if (sel == null) {
                 /*
                  * No default proxySelector --> direct connection
@@ -386,6 +414,8 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
                 super.connect(epoint, remainingMillis(deadlineMillis));
                 return;
             }
+
+            // 迭代选择器中的|SOCKS|代理服务器，逐个进行本地与代理服务器间建立连接
             while (iProxy.hasNext()) {
                 p = iProxy.next();
                 if (p == null || p == Proxy.NO_PROXY) {
@@ -407,6 +437,7 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
 
                 // Connects to the SOCKS server
                 try {
+                    // 先进行本地与代理服务器间建立连接
                     privilegedConnect(server, serverPort, remainingMillis(deadlineMillis));
                     // Worked, let's get outta here
                     break;
@@ -431,6 +462,7 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
         } else {
             // Connects to the SOCKS server
             try {
+                // 先进行本地与代理服务器间建立连接
                 privilegedConnect(server, serverPort, remainingMillis(deadlineMillis));
             } catch (IOException e) {
                 throw new SocketException(e.getMessage());
@@ -441,6 +473,7 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
         BufferedOutputStream out = new BufferedOutputStream(cmdOut, 512);
         InputStream in = cmdIn;
 
+        // 按照|SOCKS V4|协议，请求代理服务器和目标服务器间建立连接
         if (useV4) {
             // SOCKS Protocol version 4 doesn't know how to deal with
             // DOMAIN type of addresses (unresolved addresses here)
@@ -449,6 +482,8 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
             connectV4(in, out, epoint, deadlineMillis);
             return;
         }
+
+        // 按照|SOCKS V5|协议，请求代理服务器和目标服务器间建立连接
 
         // This is SOCKS V5
         out.write(PROTO_VERS);
@@ -577,6 +612,8 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
             out.close();
             throw ex;
         }
+
+        // 保存目标服务器
         external_address = epoint;
     }
 

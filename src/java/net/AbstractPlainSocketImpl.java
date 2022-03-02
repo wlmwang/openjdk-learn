@@ -567,10 +567,9 @@ abstract class AbstractPlainSocketImpl extends SocketImpl
     /**
      * Closes the socket.
      */
-    // 关闭此套接字。当前在|accept()|中阻塞的任何线程都会抛出|SocketException|异常
-    // 注：如果此套接字具有关联的通道，则该通道也将关闭
-    // 注：如果有正在使用的文件描述符，则只能先执行预关闭，再设置关闭标志位。对于服务端，代表有并发线程
-    // 正在接受连接；对于客户端，代表有并发线程正在执行连接
+    // 关闭此套接字。若当前有线程阻塞在|accept()|的调用上，会立即抛出|SocketException|异常
+    // 注：如果此套接字具有关联的通道，则该通道将会被关闭；如果有正在使用的文件描述符，则只能先执行预关闭，
+    // 再设置关闭标志位。这表示，对于服务端，有并发线程正在接受连接、对于客户端，有并发线程正在执行连接
     protected void close() throws IOException {
         synchronized(fdLock) {
             if (fd != null) {

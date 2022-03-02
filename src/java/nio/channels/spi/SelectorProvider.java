@@ -66,6 +66,8 @@ import sun.security.action.GetPropertyAction;
  * @since 1.4
  */
 
+// 多路复用筛选器的提供者类。其相当于一个工厂类，提供了对|DatagramChannel,SocketChannel,
+// ServerSocketChannel,Selector|的创建方法
 public abstract class SelectorProvider {
 
     private static final Object lock = new Object();
@@ -161,6 +163,13 @@ public abstract class SelectorProvider {
      *
      * @return  The system-wide default selector provider
      */
+    // 获取默认的多路复用提供者对象，比如|EPollSelectorProvider/PollSelectorProvider|
+    // 注1：如果定义了系统属性|java.nio.channels.spi.SelectorProvider|，那么它将被视为该提供者
+    // 的完全限定名。类会被自动加载并实例化；如果此过程失败，则会引发未指定的错误
+    // 注2：如果提供者类已安装在系统类加载器可见的|jar|文件中，并且配置了|META-INF/services|中名为
+    // |java.nio.channels.spi.SelectorProvider|配置，则会采用该文件中指定的第一个类名。类被加载
+    // 并实例化；如果此过程失败，则会引发未指定的错误
+    // 注3：最后，如果没有通过上述任何方式指定提供者，则系统默认提供者类被实例化并返回结果
     public static SelectorProvider provider() {
         synchronized (lock) {
             if (provider != null)
@@ -227,6 +236,10 @@ public abstract class SelectorProvider {
      * @throws  IOException
      *          If an I/O error occurs
      */
+    // 创建一个多路复用筛选器。类|UINX|平台上为|EPollSelectorImpl/PollSelectorImpl|对象
+    // 注：创建的多路复用筛选器，内部持有的|provider|字段，指向当前虚拟机默认的多路复用提供者对
+    // 象，比如|EPollSelectorProvider/PollSelectorProvider|
+    // 注：创建的多路复用筛选器，内部持有的|epfd|字段，底层使用|epoll_create(256)|创建
     public abstract AbstractSelector openSelector()
         throws IOException;
 
@@ -238,6 +251,12 @@ public abstract class SelectorProvider {
      * @throws  IOException
      *          If an I/O error occurs
      */
+    // 创建一个服务器套接字通道。类|UINX|平台上为|ServerSocketChannelImpl|对象，该通道的套接
+    // 字最初是未绑定的。在接收连接之前，必须通过其套接字的绑定方法绑定一个特定地址
+    // 注：创建的套接字通道，内部持有的|provider|字段，指向当前虚拟机默认的多路复用提供者对象，比
+    // 如|EPollSelectorProvider/PollSelectorProvider|
+    // 注：创建的套接字通道，内部持有的|fd|字段，底层使用|socket(domain, SOCK_STREAM, 0)|创
+    // 建的套接字，并设置了|SO_REUSEADDR|选项
     public abstract ServerSocketChannel openServerSocketChannel()
         throws IOException;
 

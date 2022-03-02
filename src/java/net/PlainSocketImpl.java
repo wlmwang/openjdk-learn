@@ -117,6 +117,8 @@ class PlainSocketImpl extends AbstractPlainSocketImpl
     // 注：底层使用|accept(fd, (struct sockaddr *)&him, (socklen_t *)&len)|接受客户端连接
     native void socketAccept(SocketImpl s) throws IOException;
 
+    // 返回可以从此输入流读取或跳过的剩余字节数的估计值，而不会使下一次读取或跳过这么多字节时被阻塞
+    // 注：系统调用|ioctl(fd, FIONREAD, &n)|可以得到描述符|fd|的缓冲区里有多少字节可被读取
     native int socketAvailable() throws IOException;
 
     // 关闭一个文件描述符。若参数为|true|时，则是预关闭套接字（不释放|OS|层文件描述符）；若为|false|时，

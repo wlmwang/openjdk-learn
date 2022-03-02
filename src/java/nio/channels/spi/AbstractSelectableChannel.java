@@ -47,6 +47,7 @@ import java.nio.channels.*;
  * @since 1.4
  */
 
+// 可进行多路复用筛选的通道的抽象类
 public abstract class AbstractSelectableChannel
     extends SelectableChannel
 {
@@ -58,6 +59,7 @@ public abstract class AbstractSelectableChannel
     // They are saved because if this channel is closed the keys must be
     // deregistered.  Protected by keyLock.
     //
+    // 存储当前套接字通道已被注册的、所有的多路复用筛选器集合
     private SelectionKey[] keys = null;
     private int keyCount = 0;
 
@@ -92,8 +94,11 @@ public abstract class AbstractSelectableChannel
 
     // -- Utility methods for the key set --
 
+    // 主要用于存储当前套接字通道已被注册至哪些多路复用筛选器中
     private void addKey(SelectionKey k) {
+        // 外部必须已经持有该对象的内置锁
         assert Thread.holdsLock(keyLock);
+
         int i = 0;
         if ((keys != null) && (keyCount < keys.length)) {
             // Find empty element of key array
@@ -101,8 +106,10 @@ public abstract class AbstractSelectableChannel
                 if (keys[i] == null)
                     break;
         } else if (keys == null) {
+            // 初始化
             keys =  new SelectionKey[3];
         } else {
+            // 扩容，每次扩容一倍
             // Grow key array
             int n = keys.length * 2;
             SelectionKey[] ks =  new SelectionKey[n];
@@ -137,6 +144,7 @@ public abstract class AbstractSelectableChannel
         }
     }
 
+    // 检查当前套接字通道是否已经被加入到一个有效的多路复用筛选器中
     private boolean haveValidKeys() {
         synchronized (keyLock) {
             if (keyCount == 0)
@@ -188,28 +196,49 @@ public abstract class AbstractSelectableChannel
      *
      * @throws  IllegalArgumentException {@inheritDoc}
      */
+    // 将当前套接字通道注册到指定的多路复用筛选器|sel|中，以监听该通道的|ops|事件。返回一个筛选器
+    // 令牌，该令牌中保存了套接字通道与多路复用筛选器的引用
     public final SelectionKey register(Selector sel, int ops,
                                        Object att)
         throws ClosedChannelException
     {
         synchronized (regLock) {
+            // 当前套接字通道必须未被关闭
             if (!isOpen())
                 throw new ClosedChannelException();
+
+            // 验证注册的监听事件必须是被当前套接字通道所支持的
+            // 注：比如服务器通道仅支持|SelectionKey.OP_ACCEPT|事件；而客户端套接字可以
+            // 支持|OP_READ, OP_WRITE, OP_CONNECT|事件
             if ((ops & ~validOps()) != 0)
                 throw new IllegalArgumentException();
+
+            // 当前套接字通道必须是非阻塞模型
             if (blocking)
                 throw new IllegalBlockingModeException();
+
+            // 查找当前套接字通道是否已被注册过|sel|多路复用。若是，则只需修改通道的监听事件
             SelectionKey k = findKey(sel);
+
+            // 若注册过，则修改套接字通道的监听事件、附加对象
             if (k != null) {
                 k.interestOps(ops);
                 k.attach(att);
             }
+            // 若未注册过，则将当前套接字通道、事件类型注册至多路复用实例中
             if (k == null) {
                 // New registration
                 synchronized (keyLock) {
+                    // 再次验证套接字通道关闭状态
                     if (!isOpen())
                         throw new ClosedChannelException();
+
+                    // 将当前套接字通道、监听事件注册进多路复用中，并返回筛选器令牌
+                    // 注：该筛选器令牌中保存了套接字通道与多路复用筛选器的引用
                     k = ((AbstractSelector)sel).register(this, ops, att);
+
+                    // 将返回的筛选器令牌保存
+                    // 注：主要用于存储当前套接字通道已被注册至哪些多路复用筛选器中
                     addKey(k);
                 }
             }
@@ -230,8 +259,17 @@ public abstract class AbstractSelectableChannel
      * order to perform the actual work of closing this channel.  It then
      * cancels all of this channel's keys.  </p>
      */
+    // 关闭当前通道。并取消该通道注册的所有多路复用
+    // 注1：总是会先执行一个预关闭动作（将通道的描述符指向一个半关闭的|socket pair|），从而使针对该
+    // 通道的任何读写操作返回|EOF|或者|Pipe Error|。防止|fd|被回收，导致|ABA|问题
+    // 注2：若在调用本关闭操作时，其他线程正在对当前通道执行|I/O|操作（执行|accept,read,write|方
+    // 法），唤醒该|I/O|线程，当其继续执行|I/O|将会立即出错，从而触发最终的|close()|关闭
+    // 注3：大部分场景中，最终的关闭动作并非由步骤二触发，而是由：自动取消当前通道注册的所有多路复用，
+    // 所有被取消的筛选令牌被收集成一个集合，并在每次|select()|调用中被处理，触发最终的|close()|关闭
     protected final void implCloseChannel() throws IOException {
+        // 关闭当前通道
         implCloseSelectableChannel();
+        // 取消该通道注册的所有多路复用
         synchronized (keyLock) {
             int count = (keys == null) ? 0 : keys.length;
             for (int i = 0; i < count; i++) {
@@ -258,6 +296,7 @@ public abstract class AbstractSelectableChannel
      * @throws  IOException
      *          If an I/O error occurs
      */
+    // 关闭当前通道
     protected abstract void implCloseSelectableChannel() throws IOException;
 
 
@@ -281,17 +320,30 @@ public abstract class AbstractSelectableChannel
      * implConfigureBlocking} method, while holding the appropriate locks, in
      * order to change the mode.  </p>
      */
+    // 设置当前套接字通道的阻塞模式。若|block==true|，设置为阻塞模式；若|block==false|，设置
+    // 为非阻塞模式
+    // 注：如果给定的阻塞模式与当前的阻塞模式不同，调用|implConfigureBlocking()|方法
     public final SelectableChannel configureBlocking(boolean block)
         throws IOException
     {
         synchronized (regLock) {
+            // 通道必须未被关闭
             if (!isOpen())
                 throw new ClosedChannelException();
+
+            // 若给定的阻塞模式与当前通道的阻塞模式相同，直接返回
             if (blocking == block)
                 return this;
+
+            // 检查当前套接字通道是否已经被加入到一个有效的多路复用筛选器中
+            // 注：若已经加入到某个筛选器中，则当前通道将不能被设置为阻塞模式
             if (block && haveValidKeys())
                 throw new IllegalBlockingModeException();
+
+            // 设置套接字通道的阻塞模式
             implConfigureBlocking(block);
+
+            // 保存设置的阻塞模式
             blocking = block;
         }
         return this;
@@ -312,6 +364,8 @@ public abstract class AbstractSelectableChannel
      * @throws IOException
      *         If an I/O error occurs
      */
+    // 设置当前套接字通道的阻塞模式。是|configureBlocking()|的底层具体实现方法
+    // 注：底层使用|fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & (block?~O_NONBLOCK:O_NONBLOCK))|
     protected abstract void implConfigureBlocking(boolean block)
         throws IOException;
 

@@ -89,7 +89,7 @@ public abstract class AbstractInterruptibleChannel
 {
 
     private final Object closeLock = new Object();
-    private volatile boolean open = true;
+    private volatile boolean open = true;   // 套接字通道是否已被关闭
 
     /**
      * Initializes a new instance of this class.
@@ -107,6 +107,8 @@ public abstract class AbstractInterruptibleChannel
      * @throws  IOException
      *          If an I/O error occurs
      */
+    // 关闭当前套接字通道。如果该通道已经关闭，则此方法立即返回。否则，它将通道标记为关闭，然后调
+    // 用|implCloseChannel()|方法以完成关闭操作
     public final void close() throws IOException {
         synchronized (closeLock) {
             if (!open)
@@ -132,8 +134,10 @@ public abstract class AbstractInterruptibleChannel
      * @throws  IOException
      *          If an I/O error occurs while closing the channel
      */
+    // 关闭当前套接字通道，该方法由|close()|调用。仅当通道尚未关闭时调用此方法，不会多次调用
     protected abstract void implCloseChannel() throws IOException;
 
+    // 套接字通道是否是打开状态
     public final boolean isOpen() {
         return open;
     }
@@ -169,7 +173,10 @@ public abstract class AbstractInterruptibleChannel
                         }
                     }};
         }
+        // 设置线程中断的钩子方法。即，当线程中断时，自动执行|interruptor.interrupt()|方法
         blockedOn(interruptor);
+
+        // 标记时，当前线程已经被中断，立即执行中断方法
         Thread me = Thread.currentThread();
         if (me.isInterrupted())
             interruptor.interrupt(me);
@@ -200,7 +207,10 @@ public abstract class AbstractInterruptibleChannel
     protected final void end(boolean completed)
         throws AsynchronousCloseException
     {
+        // 清除线程中断的钩子方法
         blockedOn(null);
+
+        // 获取被中断的线程，若是当前线程，抛出|ClosedByInterruptException|异常
         Thread interrupted = this.interrupted;
         if (interrupted != null && interrupted == Thread.currentThread()) {
             interrupted = null;

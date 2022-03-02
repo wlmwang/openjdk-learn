@@ -107,6 +107,10 @@ import java.io.IOException;
  * @see Selector
  */
 
+// 一个存储了通道与筛选器的令牌对象。即，每次使用筛选器|Selector|注册通道|SelectableChannel|时，
+// 都会创建一个筛选器令牌。在通过调用其取消方法、关闭其通道或关闭其筛选器将其取消之前，筛选器令牌将保
+// 持有效。取消一个筛选器令牌并不会立即将其从其筛选器中移除；而是将其添加到筛选器的取消令牌集中，以便
+// 在下一次选择操作期间删除。可以通过调用其|isValid|方法来测试筛选器令牌的有效性
 public abstract class SelectionKey {
 
     /**
@@ -285,6 +289,8 @@ public abstract class SelectionKey {
      * @throws  CancelledKeyException
      *          If this key has been cancelled
      */
+    // 当前筛选令牌关联的套接字通道触发了可读事件
+    // 注：多路复用中该套接字触发了|POLLOUT|事件
     public final boolean isReadable() {
         return (readyOps() & OP_READ) != 0;
     }
@@ -308,6 +314,8 @@ public abstract class SelectionKey {
      * @throws  CancelledKeyException
      *          If this key has been cancelled
      */
+    // 当前筛选令牌关联的套接字通道触发了可写事件
+    // 注：多路复用中该套接字触发了|POLLOUT|事件
     public final boolean isWritable() {
         return (readyOps() & OP_WRITE) != 0;
     }
@@ -332,6 +340,8 @@ public abstract class SelectionKey {
      * @throws  CancelledKeyException
      *          If this key has been cancelled
      */
+    // 当前筛选令牌关联的套接字通道触发了连接完成事件
+    // 注：多路复用中该套接字触发了|POLLOUT|事件
     public final boolean isConnectable() {
         return (readyOps() & OP_CONNECT) != 0;
     }
@@ -356,6 +366,8 @@ public abstract class SelectionKey {
      * @throws  CancelledKeyException
      *          If this key has been cancelled
      */
+    // 当前筛选令牌关联的套接字通道触发了连接接收事件
+    // 注：多路复用中该套接字触发了|POLLIN|事件
     public final boolean isAcceptable() {
         return (readyOps() & OP_ACCEPT) != 0;
     }
@@ -384,6 +396,8 @@ public abstract class SelectionKey {
      * @return  The previously-attached object, if any,
      *          otherwise <tt>null</tt>
      */
+    // 将给定对象附加到当前筛选器令牌上。附加的对象可以通过|attachment()|方法检索
+    // 注：一次只能附加一个对象，调用此方法会导致任何先前的附件被丢弃。当前附件可以通过附加null来丢弃
     public final Object attach(Object ob) {
         return attachmentUpdater.getAndSet(this, ob);
     }
@@ -394,6 +408,7 @@ public abstract class SelectionKey {
      * @return  The object currently attached to this key,
      *          or <tt>null</tt> if there is no attachment
      */
+    // 检索当前筛选器令牌上附加的对象
     public final Object attachment() {
         return attachment;
     }

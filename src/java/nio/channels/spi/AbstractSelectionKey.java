@@ -47,12 +47,15 @@ public abstract class AbstractSelectionKey
      */
     protected AbstractSelectionKey() { }
 
+    // 当前筛选器的令牌对象是否还未被取消。若外部调用|cancel()|取消当前令牌，则为|false|
     private volatile boolean valid = true;
 
+    // 当前筛选器的令牌对象是否还未被取消
     public final boolean isValid() {
         return valid;
     }
 
+    // 取消当前筛选器令牌
     void invalidate() {                                 // package-private
         valid = false;
     }
