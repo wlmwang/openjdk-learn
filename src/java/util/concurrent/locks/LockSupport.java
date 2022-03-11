@@ -136,6 +136,9 @@ public class LockSupport {
      * @param thread the thread to unpark, or {@code null}, in which case
      *        this operation has no effect
      */
+    // 唤醒指定线程，使之处于可运行状态。若指定线程没有被挂起过（未调用过|park()|），则该线程下一
+    // 次调用|park()|时，会将立即返回
+    // 注：在|Linux|系统下，底层使用|POSIX|线程库|pthread|的互斥量与条件变量实现
     public static void unpark(Thread thread) {
         if (thread != null)
             UNSAFE.unpark(thread);
@@ -169,6 +172,11 @@ public class LockSupport {
      *        thread parking
      * @since 1.6
      */
+    // 挂起当前线程，使之处于休眠状态，直到发生以下三种情况之一：
+    // 1.其他线程以当前线程为目标调用|unpark()|方法
+    // 2.其他线程中断当前线程
+    // 3.虚假（无缘故）的唤醒
+    // 注：在|Linux|系统下，底层使用|POSIX|线程库|pthread|的互斥量与条件变量实现
     public static void park(Object blocker) {
         Thread t = Thread.currentThread();
         setBlocker(t, blocker);
@@ -300,6 +308,11 @@ public class LockSupport {
      * the thread to park in the first place. Callers may also determine,
      * for example, the interrupt status of the thread upon return.
      */
+    // 挂起当前线程，使之处于休眠状态，直到发生以下三种情况之一：
+    // 1.其他线程以当前线程为目标调用|unpark()|方法
+    // 2.其他线程中断当前线程
+    // 3.虚假（无缘故）的唤醒
+    // 注：在|Linux|系统下，底层使用|POSIX|线程库|pthread|的互斥量与条件变量实现
     public static void park() {
         UNSAFE.park(false, 0L);
     }
