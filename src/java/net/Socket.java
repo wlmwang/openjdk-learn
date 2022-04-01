@@ -525,7 +525,7 @@ class Socket implements java.io.Closeable {
      * Sets impl to the system-default type of SocketImpl.
      * @since 1.4
      */
-    // 创建、设置服务端套接字具体实现对象
+    // 创建、设置客户端套接字具体实现对象
     void setImpl() {
         if (factory != null) {
             impl = factory.createSocketImpl();

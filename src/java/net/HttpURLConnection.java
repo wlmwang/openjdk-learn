@@ -79,6 +79,7 @@ abstract public class HttpURLConnection extends URLConnection {
      * A value of {@code -1} means chunked encoding is disabled for output.
      * @since 1.5
      */
+    // 固定输出文本|chunk-length|长度。值为|-1|表示禁用固定|chunked|进行输出
     protected int chunkLength = -1;
 
     /**
@@ -91,6 +92,8 @@ abstract public class HttpURLConnection extends URLConnection {
      *
      * @since 1.5
      */
+    // 固定输出文本|content-length|长度。值为|-1|表示禁用固定|fixed-length|进行输出
+    // 注：建议使用|fixedContentLengthLong|代替此字段，因为它允许设置更大的内容长度
     protected int fixedContentLength = -1;
 
     /**
@@ -150,6 +153,10 @@ abstract public class HttpURLConnection extends URLConnection {
      * @see     #setChunkedStreamingMode(int)
      * @since 1.5
      */
+    // 作用于在发送数据长度已知的情况下，可不使用内部缓冲的情况下直接将请求数据直接发送至对端
+    // 注：长度表示为请求体字节，并且必须配合|setDoOutput(true)|发送一起使用
+    // 注：常用于大数据发送场景（例如：大文件发送，边读边发）。默认情况下，所有请求数据会被先
+    // 缓存到内存后，才发送至远端，这极有可能会|OOM|。而此模式下，数据会被直接发送至远端
     public void setFixedLengthStreamingMode (int contentLength) {
         if (connected) {
             throw new IllegalStateException ("Already connected");
@@ -195,6 +202,10 @@ abstract public class HttpURLConnection extends URLConnection {
      *
      * @since 1.7
      */
+    // 作用于在发送数据长度已知的情况下，可不使用内部缓冲的情况下直接将请求数据直接发送至对端
+    // 注：长度表示为请求体字节，并且必须配合|setDoOutput(true)|发送一起使用
+    // 注：常用于大数据发送场景（例如：大文件发送，边读边发）。默认情况下，所有请求数据会被先
+    // 缓存到内存后，才发送至远端，这极有可能会|OOM|。而此模式下，数据会被直接发送至远端
     public void setFixedLengthStreamingMode(long contentLength) {
         if (connected) {
             throw new IllegalStateException("Already connected");

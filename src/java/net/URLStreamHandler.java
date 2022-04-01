@@ -68,6 +68,8 @@ public abstract class URLStreamHandler {
      * @exception  IOException  if an I/O error occurs while opening the
      *               connection.
      */
+    // 创建一个表示与|URL|远程资源连接的实例。每次调用都会创建一个新的|URLConnection|实例
+    // 注：不会建立实际的网络连接，只有在调用|URLConnection.connect()|时才会进行连接
     abstract protected URLConnection openConnection(URL u) throws IOException;
 
     /**
@@ -121,6 +123,8 @@ public abstract class URLStreamHandler {
      *                  "{@code #}" character, if present. All information
      *                  after the sharp sign indicates an anchor.
      */
+    // 从网络地址字符串中解析出|host, port, path, query,...|，将其设置到|u|实例中
+    // 注：字符串|spec[start,limit]|不包含协议与定位符（"#"后字符串），即去除了"http:"的地址
     protected void parseURL(URL u, String spec, int start, int limit) {
         // These fields may receive context content if this was relative URL
         String protocol = u.getProtocol();
@@ -135,17 +139,23 @@ public abstract class URLStreamHandler {
         String ref = u.getRef();
 
         boolean isRelPath = false;
-        boolean queryOnly = false;
+        boolean queryOnly = false;  // 网络地址中仅含有|query|字符串
 
-// FIX: should not assume query if opaque
+        // 网络地址格式："http://username@localhost.com:port/path/to/index.jsp?query=xxx#xxx"
+
+        // FIX: should not assume query if opaque
         // Strip off the query part
+        // 解析|query|字符串：地址中"?"后的字符串
         if (start < limit) {
             int queryStart = spec.indexOf('?');
+            // 网络地址中第一个字符为"?"，表示地址中仅含有|query|字符串
             queryOnly = queryStart == start;
             if ((queryStart != -1) && (queryStart < limit)) {
+                // 地址中"?"后的字符串都为|query|字符串
                 query = spec.substring(queryStart+1, limit);
                 if (limit > queryStart)
                     limit = queryStart;
+                // 截断网络地址，去除|query|字符串
                 spec = spec.substring(0, queryStart);
             }
         }
@@ -157,9 +167,11 @@ public abstract class URLStreamHandler {
                         (spec.charAt(start + 1) == '/') &&
                         (spec.charAt(start + 2) == '/') &&
                         (spec.charAt(start + 3) == '/');
+        // 解析以双斜线起始的网络地址
         if (!isUNCName && (start <= limit - 2) && (spec.charAt(start) == '/') &&
             (spec.charAt(start + 1) == '/')) {
             start += 2;
+            // 获取网络地址在"http://"后的第一个"/"字符偏移量
             i = spec.indexOf('/', start);
             if (i < 0) {
                 i = spec.indexOf('?', start);
@@ -167,8 +179,10 @@ public abstract class URLStreamHandler {
                     i = limit;
             }
 
+            // 解析|host, authority|字符串：即网络地址中"http://"后，到第一个"/"前的字符串
             host = authority = spec.substring(start, i);
 
+            // 解析|userInfo, host|字符串
             int ind = authority.indexOf('@');
             if (ind != -1) {
                 userInfo = authority.substring(0, ind);
@@ -179,6 +193,7 @@ public abstract class URLStreamHandler {
             if (host != null) {
                 // If the host is surrounded by [ and ] then its an IPv6
                 // literal address as specified in RFC2732
+                // 解析主机名为|IPv6|的字符串
                 if (host.length()>0 && (host.charAt(0) == '[')) {
                     if ((ind = host.indexOf(']')) > 2) {
 
@@ -208,13 +223,16 @@ public abstract class URLStreamHandler {
                             "Invalid authority field: " + authority);
                     }
                 } else {
+                    // 解析网络端口
                     ind = host.indexOf(':');
                     port = -1;
                     if (ind >= 0) {
                         // port can be null according to RFC2396
                         if (host.length() > (ind + 1)) {
+                            // 获取端口号：地址中":"后的数字
                             port = Integer.parseInt(host.substring(ind + 1));
                         }
+                        // 重新设置主机名：去除端口号
                         host = host.substring(0, ind);
                     }
                 }
@@ -236,15 +254,20 @@ public abstract class URLStreamHandler {
         }
 
         // Parse the file path if any
+        // 解析去除了协议、主机名、端口号、以及请求参数（"?"后跟的字符串）的网络地址字符串
         if (start < limit) {
             if (spec.charAt(start) == '/') {
+                // 以"/"起始的网络地址
                 path = spec.substring(start, limit);
             } else if (path != null && path.length() > 0) {
+                // 网络地址为相对地址（非以"/"起始的网络地址）
                 isRelPath = true;
                 int ind = path.lastIndexOf('/');
                 String seperator = "";
                 if (ind == -1 && authority != null)
                     seperator = "/";
+
+                // 生成新的|path|：上下文的|path|拼接|spec|路径中|path|字符串
                 path = path.substring(0, ind + 1) + seperator +
                          spec.substring(start, limit);
 
@@ -263,10 +286,13 @@ public abstract class URLStreamHandler {
 
         if (isRelPath) {
             // Remove embedded /./
+            // 去除相对地址中"/./"的路径字符串
             while ((i = path.indexOf("/./")) >= 0) {
                 path = path.substring(0, i) + path.substring(i + 2);
             }
+
             // Remove embedded /../ if possible
+            // 去除相对地址中"/../"的路径字符串
             i = 0;
             while ((i = path.indexOf("/../", i)) >= 0) {
                 /*
@@ -283,7 +309,9 @@ public abstract class URLStreamHandler {
                     i = i + 3;
                 }
             }
+
             // Remove trailing .. if possible
+            // 去除相对地址中，以"/.."的路径结尾的字符串
             while (path.endsWith("/..")) {
                 i = path.indexOf("/..");
                 if ((limit = path.lastIndexOf('/', i - 1)) >= 0) {
@@ -292,15 +320,19 @@ public abstract class URLStreamHandler {
                     break;
                 }
             }
+
             // Remove starting .
+            // 去除相对地址中，以"./"的路径起始的字符串
             if (path.startsWith("./") && path.length() > 2)
                 path = path.substring(2);
 
             // Remove trailing .
+            // 去除相对地址中，以"/."的路径结尾的字符串
             if (path.endsWith("/."))
                 path = path.substring(0, path.length() -1);
         }
 
+        // 从网络地址字符串中解析出|host, port, path, query,...|，将其设置到|u|实例中
         setURL(u, protocol, host, port, authority, userInfo, path, query, ref);
     }
 
@@ -526,7 +558,8 @@ public abstract class URLStreamHandler {
      * @see     java.net.URL#set(java.lang.String, java.lang.String, int, java.lang.String, java.lang.String)
      * @since 1.3
      */
-       protected void setURL(URL u, String protocol, String host, int port,
+    // 由方法|parseURL()|调用，用于将网络地址字符串的解析结果设置到|u|实例中
+    protected void setURL(URL u, String protocol, String host, int port,
                              String authority, String userInfo, String path,
                              String query, String ref) {
         if (this != u.handler) {

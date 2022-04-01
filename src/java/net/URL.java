@@ -174,6 +174,7 @@ public final class URL implements java.io.Serializable {
      * defined as {@code path[?query]}
      * @serial
      */
+    // 值为|path| + "?" + |query|组成的字符串
     private String file;
 
     /**
@@ -428,6 +429,8 @@ public final class URL implements java.io.Serializable {
      *               unknown protocol is found, or {@code spec} is {@code null}.
      * @see        java.net.URL#URL(java.net.URL, java.lang.String)
      */
+    // 基于一个网络地址字符串创建一个|URL|实例
+    // 注：如果未指定协议、或协议未知，又或者|spec|为空，将抛出|MalformedURLException|异常
     public URL(String spec) throws MalformedURLException {
         this(null, spec);
     }
@@ -510,7 +513,7 @@ public final class URL implements java.io.Serializable {
         int i, limit, c;
         int start = 0;
         String newProtocol = null;
-        boolean aRef=false;
+        boolean aRef = false;
         boolean isRelative = false;
 
         // Check for permission to specify a handler
@@ -532,26 +535,26 @@ public final class URL implements java.io.Serializable {
                 start++;        // eliminate leading whitespace
             }
 
-            // 检查字符串，若请求地址以|url:|起始，则跳过该|url:|子字符串
+            // 检查字符串，若请求地址以|url:|起始，则跳过该|url:|字符串
             if (spec.regionMatches(true, start, "url:", 0, 4)) {
                 start += 4;
             }
 
-            // 若请求地址以"#"起始，将|aRef|置位
+            // 若请求地址以"#"起始，则将|aRef|置位
             if (start < spec.length() && spec.charAt(start) == '#') {
                 /* we're assuming this is a ref relative to the context URL.
                  * This means protocols cannot start w/ '#', but we must parse
                  * ref URL's like: "hello:there" w/ a ':' in them.
                  */
-                aRef=true;
+                aRef = true;
             }
 
-            // 若请求地址不是以"#"起始，遍历该地址，直到"/"字符或匹配到一个合法网络协议头时停止
+            // 获取协议字符串：若请求地址不是以"#"起始，遍历该地址，直到"/"或":"字符时停止遍历
             for (i = start ; !aRef && (i < limit) &&
                      ((c = spec.charAt(i)) != '/') ; i++) {
                 if (c == ':') {
                     // 检查":"之前的地址字符串，若是一个合法的网络协议，将其赋值给|newProtocol|变量
-                    // 注：检查|s|字符串，是否是一个首字符为字母，其余字符为字母、数字、点号、加号或减号的字符串
+                    // 注：检查|s|字符串是否是一个首字符为字母，其余字符为字母、数字、点号、加号或减号的字符串
                     String s = spec.substring(start, i).toLowerCase();
                     if (isValidProtocol(s)) {
                         newProtocol = s;
@@ -562,11 +565,11 @@ public final class URL implements java.io.Serializable {
             }
 
             // Only use our context if the protocols match.
-            // 协议头|protocol|，是一个首字符为字母，其余字符为字母、数字、点号、加号或减号的字符串
+            // 协议头是一个首字符为字母，其余字符为字母、数字、点号、加号或减号的字符串
             protocol = newProtocol;
 
-            // 若上下文参数|context|不为空，且请求地址中未检查到有网络协议头、或与上下文有相同的网络协议头
-            // 注：此时的请求地址为一个相对地址，其网络协议、主机、端口、路径都使用上下文参数|context|中的值
+            // 若上下文参数不为空，且请求地址中未检查到有网络协议头、或与上下文有相同的网络协议头
+            // 注：此时的请求地址为一个相对地址，其网络协议、主机、端口、路径都使用上下文参数中的值
             if ((context != null) && ((newProtocol == null) ||
                             newProtocol.equalsIgnoreCase(context.protocol))) {
                 // inherit the protocol handler from the context
@@ -582,7 +585,8 @@ public final class URL implements java.io.Serializable {
                 if (context.path != null && context.path.startsWith("/"))
                     newProtocol = null;
 
-                // 请求地址中未检查到有网络协议头，使用上下文参数中的配置
+                // 请求地址中未检查到有网络协议头，继承使用上下文参数中的配置
+                // 注：此时的|spec|参数可以为相对地址
                 if (newProtocol == null) {
                     protocol = context.protocol;
                     authority = context.authority;
@@ -602,6 +606,7 @@ public final class URL implements java.io.Serializable {
 
             // Get the protocol handler if not specified or the protocol
             // of the context could not be used
+            // 根据协议字符串获取响应的协议处理器
             if (handler == null &&
                 (handler = getURLStreamHandler(protocol)) == null) {
                 throw new MalformedURLException("unknown protocol: "+protocol);
@@ -609,8 +614,10 @@ public final class URL implements java.io.Serializable {
 
             this.handler = handler;
 
+            // 设置|ref|，即网络地址在"#"后面的字符串
             i = spec.indexOf('#', start);
             if (i >= 0) {
+                // 解析|ref|字符串：地址中"#"后的字符串
                 ref = spec.substring(i + 1, limit);
                 limit = i;
             }
@@ -626,6 +633,7 @@ public final class URL implements java.io.Serializable {
                 }
             }
 
+            // 从网络地址字符串中解析出|host, port, path, query,...|，将其设置到当前实例中
             handler.parseURL(this, spec, start, limit);
 
         } catch(MalformedURLException e) {
@@ -988,6 +996,8 @@ public final class URL implements java.io.Serializable {
      * @see        java.net.URL#URL(java.lang.String, java.lang.String,
      *             int, java.lang.String)
      */
+    // 创建一个表示与|URL|远程资源连接的实例。每次调用都会创建一个新的|URLConnection|实例
+    // 注：不会建立实际的网络连接，只有在调用|URLConnection.connect()|时才会进行连接
     public URLConnection openConnection() throws java.io.IOException {
         return handler.openConnection(this);
     }
@@ -1143,6 +1153,8 @@ public final class URL implements java.io.Serializable {
      * Returns the Stream Handler.
      * @param protocol the protocol to use
      */
+    // 根据协议字符串获取响应的协议处理器
+    // 注：默认情况下，处理器全限定名为"sun.net.www.protocol.|protocol|.Handler"
     static URLStreamHandler getURLStreamHandler(String protocol) {
 
         URLStreamHandler handler = handlers.get(protocol);

@@ -1329,9 +1329,8 @@ public final class String
      *          or case insensitive depends on the {@code ignoreCase}
      *          argument.
      */
-    // 字符串局部子串比较
-    // 若|value[toffset, toffset+len]|与|other.value[ooffset, ooffset+len]|字符序
-    // 列数组一一相等，返回|true|，否则返回|false|
+    // 若|this[toffset, toffset+len]|与|other[ooffset, ooffset+len]|字符序列数组一一
+    // 相等，返回|true|，否则返回|false|
     public boolean regionMatches(boolean ignoreCase, int toffset,
             String other, int ooffset, int len) {
         char ta[] = value;

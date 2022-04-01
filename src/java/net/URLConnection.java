@@ -361,6 +361,10 @@ public abstract class URLConnection {
      * @see #getConnectTimeout()
      * @see #setConnectTimeout(int)
      */
+    // 如果尚未建立连接，则打开指向|URL|网络地址的通信连接
+    // 注：对象|URLConnection|主要有两个阶段：首先创建它们，然后连接它们。在创建之后和连接之前，
+    // 可以指定各种选项（例如|doInput|和|UseCaches|）。连接后，尝试设置它们是错误的。依赖于连
+    // 接的操作（如|getContentLength|）将隐式执行
     abstract public void connect() throws IOException;
 
     /**
@@ -383,6 +387,7 @@ public abstract class URLConnection {
      * @see #connect()
      * @since 1.5
      */
+    // 设置连接到|URL|指定的网络资源的超时限定（毫秒单位）。当|timeout=0|表示为无超时
     public void setConnectTimeout(int timeout) {
         if (timeout < 0) {
             throw new IllegalArgumentException("timeout can not be negative");
@@ -426,6 +431,8 @@ public abstract class URLConnection {
      * @see InputStream#read()
      * @since 1.5
      */
+    // 设置读取超时时间（毫秒单位）。非零值表示：在与资源建立连接后，从输入流读取数据的超时限定
+    // 当|timeout=0|表示为无超时
     public void setReadTimeout(int timeout) {
         if (timeout < 0) {
             throw new IllegalArgumentException("timeout can not be negative");
@@ -826,6 +833,8 @@ public abstract class URLConnection {
      * @see #setReadTimeout(int)
      * @see #getReadTimeout()
      */
+    // 获取连接的输入流，从其读出数据即表示向对端请求后返回数据。须先调用|setDoInput(true)|
+    // 注：如果连接尚未建立，则会触发打开指向|URL|网络地址的通信连接；并将请求头发送到远端
     public InputStream getInputStream() throws IOException {
         throw new UnknownServiceException("protocol doesn't support input");
     }
@@ -839,6 +848,11 @@ public abstract class URLConnection {
      * @exception  UnknownServiceException  if the protocol does not support
      *               output.
      */
+    // 获取连接的输出流，向其写入数据即表示向对端发送|POST|数据。须先调用|setDoOutput(true)|，
+    // 并且在此前不能调用过|getInputStream()| - 你不可能在发送请求前，就读取对端的响应数据
+    // 注：如果连接尚未建立，则会触发打开指向|URL|网络地址的通信连接；并将请求头发送到远端，不过
+    // 只有当前连接处于"流"模式下，才会将请求头立即发送至对端。（处于非"流"模式下，要等到获取输入
+    // 端时，才会将请求头发送到远端）
     public OutputStream getOutputStream() throws IOException {
         throw new UnknownServiceException("protocol doesn't support output");
     }
@@ -1010,6 +1024,11 @@ public abstract class URLConnection {
      * @throws IllegalStateException if already connected
      * @see     #getIfModifiedSince()
      */
+    // 标准|HTTP|请求头|If-Modified-Since|。在发送|HTTP|请求时，浏览器端把缓存页面的最后修改时
+    // 间发到服务器，服务器会把这个时间与服务器上实际文件的最后修改时间进行比较
+    // 1.如果时间一致，那么返回状态码|304|（不返回文件内容），客户端接到之后，就使用本地缓存文件
+    // 2.如果时间不一致，返回状态码|200|和新的文件，客户端接到之后，会丢弃旧文件，把新文件缓存起来
+    // 注：一般请求头|If-Modified-Since|来源为响应头中的|Last-Modified|的值
     public void setIfModifiedSince(long ifmodifiedsince) {
         if (connected)
             throw new IllegalStateException("Already connected");
@@ -1069,6 +1088,10 @@ public abstract class URLConnection {
      * @throws NullPointerException if key is <CODE>null</CODE>
      * @see #getRequestProperty(java.lang.String)
      */
+    // 设置请求常规属性。如果|key|属性已存在，用新值覆盖其值；属性字符串忽略大小写
+    // 注：|HTTP|要求合法拥有多个具有相同|key|的实例的所有请求属性使用逗号分隔的列表语法，该语法允许
+    // 将多个属性附加到单个属性中
+    // 注：若已连接，抛出|IllegalStateException|异常；|key|为空，抛出|NullPointerException|
     public void setRequestProperty(String key, String value) {
         if (connected)
             throw new IllegalStateException("Already connected");
@@ -1094,6 +1117,7 @@ public abstract class URLConnection {
      * @see #getRequestProperties()
      * @since 1.4
      */
+    // 设置请求常规属性。相比|setRequestProperty()|方法，设置属性时不会去重、覆盖
     public void addRequestProperty(String key, String value) {
         if (connected)
             throw new IllegalStateException("Already connected");
